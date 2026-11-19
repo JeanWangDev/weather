@@ -1,6 +1,6 @@
 'use client';
 
-import { Icon, IconDroplet } from '@/assets';
+import { SvgPor, svgIcon } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { DailyForecast } from '@/types/weather';
 import { clamp, formatWeekday } from '@/lib/format';
@@ -33,6 +33,7 @@ export default function ForecastList({ daily }: ForecastListProps) {
       <ul className="m-0 list-none p-0">
         {daily.map((day, index) => {
           const condition = describeWeather(day.weatherCode, true, locale);
+          const Glyph = svgIcon(condition.icon);
           const left = clamp(((day.temperatureMin - globalMin) / span) * 100, 0, 100);
           const width = clamp(
             ((day.temperatureMax - day.temperatureMin) / span) * 100,
@@ -52,7 +53,7 @@ export default function ForecastList({ daily }: ForecastListProps) {
                 {formatWeekday(day.date, locale)}
               </span>
               <span className="flex w-6 shrink-0 justify-center" aria-hidden>
-                <Icon name={condition.icon} size={18} />
+                <Glyph width={18} height={18} />
               </span>
               <span className="hidden flex-1 truncate text-xs text-ink-muted sm:block">
                 {condition.label}
@@ -60,7 +61,7 @@ export default function ForecastList({ daily }: ForecastListProps) {
               <span className="hidden w-16 shrink-0 items-center justify-end gap-1 whitespace-nowrap text-[11px] text-ink-faint sm:flex">
                 {day.precipitation > 0 && (
                   <>
-                    <IconDroplet size={11} />
+                    <SvgPor.IconDroplet width={11} height={11} />
                     {day.precipitation.toFixed(1)}mm
                   </>
                 )}

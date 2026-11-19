@@ -5,7 +5,7 @@ import { MAP_TILE, buildExternalMapUrl, buildTileUrl, hasBasemapCoverage } from 
 import { useI18n } from '@/hooks/use-i18n';
 import type { GeoLocation, HourlyPoint } from '@/types/weather';
 import { formatCoordinate } from '@/lib/format';
-import { IconArrowUpRight } from '@/assets';
+import { SvgPor } from '@/assets';
 
 interface LocationMapProps {
   location: GeoLocation;
@@ -131,7 +131,7 @@ export default function LocationMap({ location, hourly }: LocationMapProps) {
           rel="noreferrer"
         >
           {t('openMap')}
-          <IconArrowUpRight size={13} />
+          <SvgPor.IconArrowUpRight width={13} height={13} />
         </a>
       </div>
     </section>

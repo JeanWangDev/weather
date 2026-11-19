@@ -5,7 +5,7 @@ import { useI18n } from '@/hooks/use-i18n';
 import { WeatherService } from '@/services/weather-service';
 import { ApiClientError } from '@/services/api-client-error';
 import { POPULAR_CITIES } from '@/config/cities';
-import { Icon } from '@/assets';
+import { svgIcon } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { CityOverview, GeoLocation } from '@/types/weather';
 
@@ -68,6 +68,7 @@ export default function PopularCities({ onSelect }: PopularCitiesProps) {
       {cities.map((name) => {
         const item = overview[name];
         const condition = item ? describeWeather(item.weatherCode, item.isDay, locale) : null;
+        const Glyph = condition ? svgIcon(condition.icon) : null;
 
         return (
           <button
@@ -81,7 +82,7 @@ export default function PopularCities({ onSelect }: PopularCitiesProps) {
             {pending === name ? (
               <span className="h-3 w-3 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
             ) : (
-              condition && <Icon name={condition.icon} size={14} aria-hidden />
+              Glyph && <Glyph width={14} height={14} aria-hidden />
             )}
             <span>{name}</span>
             {item && (

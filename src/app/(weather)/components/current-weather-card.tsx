@@ -1,6 +1,6 @@
 'use client';
 
-import { Icon } from '@/assets';
+import { svgIcon } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { WeatherSnapshot } from '@/types/weather';
 import { formatClock, formatCoordinate, formatPlaceName, formatWindDirection } from '@/lib/format';
@@ -22,6 +22,7 @@ export default function CurrentWeatherCard({ data }: CurrentWeatherCardProps) {
   const { locale, t } = useI18n();
   const { current, location, units } = data;
   const condition = describeWeather(current.weatherCode, current.isDay, locale);
+  const Glyph = svgIcon(condition.icon);
 
   const metrics = [
     ...(typeof current.apparentTemperature === 'number'
@@ -68,9 +69,9 @@ export default function CurrentWeatherCard({ data }: CurrentWeatherCardProps) {
       </header>
 
       <div className="mb-1.5 mt-[22px] flex items-center gap-5 max-sm:flex-wrap max-sm:gap-3.5">
-        <Icon
-          name={condition.icon}
-          size={48}
+        <Glyph
+          width={48}
+          height={48}
           className="[filter:drop-shadow(0_8px_24px_var(--accent-soft))] max-sm:h-11 max-sm:w-11"
         />
         <div className="flex items-baseline gap-1">

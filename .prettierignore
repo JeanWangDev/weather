@@ -5,4 +5,3 @@ build
 docs
 yarn.lock
 *.md
-public/assets/sprite.svg

@@ -18,6 +18,8 @@ yarn dev            # http://localhost:3000
 
 其他命令：`yarn lint` / `yarn format` / `yarn typecheck` / `yarn build` / `yarn start`。
 
+`yarn start` 不是 `next start`：项目开了 `output: 'standalone'`，产物是「自带最小 node_modules 的独立服务」，`next start` 找不到 vendor-chunks 会直接 500（Next 官方也说明两者不兼容）。所以 `start` 走 `scripts/start-standalone.mjs`：先把 `public` 与 `.next/static` 同步进 `.next/standalone`（和 Dockerfile 运行层做的是同一件事），再起 `standalone/server.js`，本地预览与镜像行为一致。
+
 > 无需任何 API Key 或 `.env`，开箱即用。
 >
 > 包管理器为 Yarn 4（`.yarnrc.yml` 固定 `nodeLinker: node-modules`，即常规 `node_modules` 布局；registry 固定到 npm 官方源，保证本机与容器装到同一批包）。
@@ -43,77 +45,89 @@ docker compose up --build
 按「职责」分层，且命名、分层顺序对齐生产级项目的通行做法（config → services → stores → server → types → lib → components）：
 
 ```
-tailwind.config.ts          # 设计令牌（色板/圆角/字体/动效），组件只消费语义化 token
-Dockerfile                  # 三阶段构建，运行层只带 next standalone 产物
-docker-compose.yml          # 一条命令起服务（含 healthcheck）
-.dockerignore
-.eslintrc.json              # next/core-web-vitals + prettier 兼容层 + 少量自定规则
+tailwind.config.ts           # 设计令牌（色板/圆角/字体/动效），组件只消费语义化 token
+Dockerfile                   # 三阶段构建，运行层只带 next standalone 产物
+docker-compose.yml           # 一条命令起服务（含 healthcheck）
+.eslintrc.json               # next/core-web-vitals + prettier 兼容层 + 少量自定规则（含 scripts 例外）
 .prettierrc / .prettierignore
-commitlint.config.mjs       # Conventional Commits 规范
-.lintstagedrc.json          # 提交前只对暂存文件跑 eslint --fix + prettier
-.husky/pre-commit           # lint-staged + typecheck
-.husky/commit-msg           # commitlint 校验提交信息
-.yarnrc.yml                 # node-modules 布局 + 固定 npm 官方源
-public/assets/               # 静态资源：svg/（源图标，大驼峰命名）、images/（位图）
-├── sprite.svg              # ← 生成的雪碧图，勿手改
-scripts/build-assets.mjs     # 资源管线：合成雪碧图 + 生成类型化清单
+commitlint.config.mjs        # Conventional Commits 规范
+.lintstagedrc.json           # 提交前只对暂存文件跑 eslint --fix + prettier
+.husky/pre-commit            # lint-staged + typecheck
+.husky/commit-msg            # commitlint 校验提交信息
+public/assets/               # 静态资源根：svg/（图标源文件，大驼峰）、images/（位图）
+scripts/build-assets.mjs     # 资源管线：扫目录 → 生成 SvgPor 类（会被 lint）
 src/
-├── assets/index.ts          # ← 生成的资源总入口（ICONS / IMAGES / IconName…），勿手改
-├── app/                    # 路由层：只做装配
-│   ├── layout.tsx
-│   ├── page.tsx            # 页面编排：store 状态 → 组件
+├── app/                     # ← 路由层 + 业务模块（business module）
+│   ├── (weather)/           # 天气业务模块：路由组，不影响 URL（页面仍在 /）
+│   │   ├── page.tsx         #   只做编排：store 状态 → 组件
+│   │   └── components/      #   只服务本模块的业务组件
+│   │       ├── search-bar.tsx
+│   │       ├── current-weather-card.tsx
+│   │       ├── hourly-strip.tsx
+│   │       ├── temperature-trend.tsx   # SVG 手绘温度趋势折线
+│   │       ├── popular-cities.tsx      # 头部推荐城市胶囊（一次批量拿温度）
+│   │       ├── location-map.tsx        # 真实瓦片 + 中心标记 + 未来两小时文案
+│   │       └── forecast-list.tsx
+│   ├── layout.tsx           # 全局：字体 / 主题引导脚本 / i18n 注入
 │   ├── globals.css
-│   └── api/
+│   ├── icon.svg
+│   └── api/                 # Route Handler（不是"路由层混进业务"，见「关键设计 0」）
 │       ├── geocode/route.ts    # GET /api/geocode?q=&lang=   地点搜索代理
 │       ├── location/route.ts   # GET /api/location?lat=&lon= 逆地理编码（定位功能）
 │       ├── overview/route.ts   # GET /api/overview?cities=  推荐城市批量当前温度
 │       └── weather/route.ts    # GET /api/weather?...        天气查询（入参校验 + 10 分钟缓存）
-├── config/                 # 配置与常量，环境差异集中在这里
-│   ├── api.ts              # API_ENDPOINTS + UPSTREAM（上游地址/超时/UA/结果条数）
-│   ├── cities.ts           # 热门城市推荐位 + 默认城市（按语言）
-│   ├── map.ts              # 瓦片源 / 缩放级别 / 外部地图深链
-│   ├── i18n.ts             # zh/en 词典 + 错误码映射 + 日期 locale 映射
-│   └── env.ts              # 环境常量：/api 前缀、请求超时
-├── services/               # 客户端数据访问层（只跟自家 /api 打交道）
-│   ├── api-client.ts       # 统一请求客户端：拼 query、超时、非 2xx 归一化
-│   ├── api-client-error.ts # 带 status 的客户端错误类型
-│   ├── api-envelope.ts     # 响应信封解包 + 业务失败判定
-│   └── weather-service.ts  # 业务方法：searchLocations / getSnapshot / reverseGeocode
-├── stores/                 # 全局状态
-│   ├── use-weather-store.ts    # Zustand：状态机 + 单飞 + 客户端缓存
-│   └── use-preference-store.ts # Zustand + persist：主题 / 语言偏好
-├── server/                 # 仅在 Route Handler 中运行的代码（不会进客户端 bundle）
-│   ├── envelope.ts         # 统一响应信封 ok() / fail()
-│   ├── weather-error.ts    # 服务端错误类型 + 未知错误归一化
+├── components/              # ← 公共组件（跨模块复用，与天气业务无关）
+│   ├── app-controls.tsx     # 主题 / 语言切换
+│   ├── brand-mark.tsx       # logo 按钮：点击即定位到我的位置
+│   └── state-views.tsx      # EmptyState / LoadingState / ErrorState
+├── assets/
+│   ├── svg/                 # 图标源文件（大驼峰命名，如 IconMoon.svg）
+│   ├── icons.ts             # ← 生成：SvgPor 类 + svgIcon()，勿手改
+│   ├── images.ts            # ← 生成：IMAGES 清单（含像素尺寸），勿手改
+│   └── index.ts             # ← 生成：资源总出口（SvgPor / IMAGES / svgIcon），勿手改
+├── config/                  # 配置与常量，环境差异集中在这里
+│   ├── api.ts               # API_ENDPOINTS + UPSTREAM（上游地址/超时/UA/结果条数）
+│   ├── cities.ts            # 热门城市推荐位 + 默认城市（按语言）
+│   ├── map.ts               # 瓦片源 / 缩放级别 / 外部地图深链
+│   ├── i18n.ts              # zh/en 词典 + 错误码映射 + 日期 locale 映射
+│   └── env.ts               # 环境常量：/api 前缀、请求超时
+├── services/                # 客户端数据访问层（只跟自家 /api 打交道）
+│   ├── api-client.ts        # 统一请求客户端：拼 query、超时、非 2xx 归一化
+│   ├── api-client-error.ts  # 带 status 的客户端错误类型
+│   ├── api-envelope.ts      # 响应信封解包 + 业务失败判定
+│   └── weather-service.ts   # 业务方法：searchLocations / getSnapshot / reverseGeocode
+├── stores/                  # 全局状态
+│   ├── use-weather-store.ts     # Zustand：状态机 + 单飞 + 客户端缓存
+│   └── use-preference-store.ts  # Zustand + persist：主题 / 语言偏好
+├── server/                  # 仅在 Route Handler 中运行的代码（不会进客户端 bundle）
+│   ├── envelope.ts          # 统一响应信封 ok() / fail()
+│   ├── weather-error.ts     # 服务端错误类型 + 未知错误归一化
 │   └── weather/
-│       ├── geocoding.ts    # Open-Meteo Geocoding 适配器（支持 zh/en）
-│       ├── reverse.ts      # 逆地理编码适配器（坐标 → 地名）
-│       └── metno.ts        # MET Norway 预报适配器（日聚合 + WMO 映射 + 时区）
+│       ├── geocoding.ts     # Open-Meteo Geocoding 适配器（支持 zh/en）
+│       ├── reverse.ts       # 逆地理编码适配器（坐标 → 地名）
+│       └── metno.ts         # MET Norway 预报适配器（日聚合 + WMO 映射 + 时区）
 ├── types/
-│   └── weather.ts          # 领域模型（UI / 服务端共用）
-├── lib/                    # 无状态纯函数工具
-│   ├── format.ts           # 时间/风向/坐标/地名/人口格式化
-│   ├── time.ts             # UTC → 地点当地时间（Intl，含夏令时）
-│   ├── weather-codes.ts    # WMO code → 中英文案/图标
-│   └── cn.ts               # 条件 className 拼接（不引 clsx）
-├── hooks/
-│   ├── use-location-search.ts  # 输入 → ahooks 防抖 → 请求 → 结果（含竞态取消）
-│   ├── use-geolocation.ts      # navigator.geolocation + 逆地理编码 + 超时看门狗
-│   └── use-i18n.ts             # 取词器 t(key, vars)
-└── components/             # 纯展示组件（不取数据），文件名 kebab-case
-    ├── search-bar.tsx
-    ├── current-weather-card.tsx
-    ├── hourly-strip.tsx
-    ├── temperature-trend.tsx   # SVG 手绘温度趋势折线
-    ├── popular-cities.tsx      # 头部推荐城市胶囊（一次批量拿温度）
-    ├── location-map.tsx        # 位置地图：真实瓦片 + 中心标记 + 未来两小时文案
-    ├── forecast-list.tsx
-    ├── app-controls.tsx        # 主题 / 语言切换
-    ├── brand-mark.tsx          # logo 按钮：点击即定位到我的位置
-    └── state-views.tsx         # EmptyState / LoadingState / ErrorState
+│   ├── weather.ts           # 领域模型（UI / 服务端共用）
+│   └── svg.d.ts             # *.svg 作为 React 组件的模块声明
+├── lib/                     # 无状态纯函数工具
+│   ├── format.ts            # 时间/风向/坐标/地名/人口格式化
+│   ├── time.ts              # UTC → 地点当地时间（Intl，含夏令时）
+│   ├── weather-codes.ts     # WMO code → 中英文案/图标
+│   └── cn.ts                # 条件 className 拼接（不引 clsx）
+└── hooks/
+    ├── use-location-search.ts  # 输入 → ahooks 防抖 → 请求 → 结果（含竞态取消）
+    ├── use-geolocation.ts      # navigator.geolocation + 逆地理编码 + 超时看门狗
+    └── use-i18n.ts             # 取词器 t(key, vars)
 ```
 
 **头部信息架构**：标题左侧、右上角是「语言/主题 + logo 定位」，下面是热门城市胶囊（`config/cities.ts`，按语言各一套），点一下直接出结果，省掉「先想关键词再打字」。胶囊上直接显示该城市**当前温度与昼夜图标**（一次 `GET /api/overview` 批量取，不是 6 次请求）。
+
+**业务组件 vs 公共组件**：判据只有一条——**只有这个业务模块会用，就放在模块目录里**。
+
+- `app/(weather)/components/`：只服务天气页的组件（天气卡、逐小时、趋势、预报、地图、搜索框、热门城市胶囊）。删掉这个模块，这些文件一起删，不会影响别处。
+- `components/`：跨模块复用的公共组件（品牌位、主题/语言控件、Idle/Loading/Error 状态视图）。它们不认识「天气」这个概念，只认识 props。
+
+`(weather)` 是 **Route Group**：括号目录不参与 URL 生成，页面依旧在 `/`，只是把「一个业务模块」在文件系统里圈出来。以后加第二个模块（比如 `(aqi)`、`(settings)`），各带各的 `components/`，公共的再往上提——这才是不用等重构就能扩展的结构。
 
 **依赖方向是单向的**：`app → components → hooks → stores → services → types`，`server` 只被 `app/api` 引用。任何一层都能被单独替换，不存在循环依赖，也不存在"组件里偷偷 fetch 上游"。
 
@@ -131,7 +145,7 @@ src/
 
 ```
 src/app/
-├── page.tsx              → 渲染 GET /            （页面）
+├── (weather)/page.tsx    → 渲染 GET /            （页面，路由组不产生 URL 段）
 ├── layout.tsx            → 所有页面的外壳
 └── api/
     ├── geocode/route.ts  → 处理 GET /api/geocode （接口）
@@ -140,7 +154,7 @@ src/app/
 
 - `route.ts` 是 Route Handler 的保留文件名（和 `page.tsx`、`layout.tsx` 同级约定）；写成 `api/weather/page.tsx` 就变成"一个页面"，而不是接口。
 - 所以 `/api/*` 放在 `app/` 下**不是放错**，反而是官方推荐位置：路由、接口共用一套 URL 结构，部署时也不需要额外服务。
-- 「页面职责」并没有被稀释：`app/page.tsx` 只做编排（store 状态 → 组件，196 行），业务组件在 `components/`，数据访问在 `server/` + `services/`。
+- 「页面职责」并没有被稀释：`app/(weather)/page.tsx` 只做编排（store 状态 → 组件），业务组件在 `app/(weather)/components/`，公共组件在 `components/`，数据访问在 `server/` + `services/`。
 - 如果以后服务端逻辑变重（多服务、独立部署、需要复用给别的客户端），才把它抽成独立 Node 服务或 `server/` 独立进程——那属于超出本题范围的取舍。
 
 > 老项目里的 `pages/api/*` 是 Pages Router 的写法，和 App Router 不混用；本项目从头就是 App Router。
@@ -369,69 +383,94 @@ Next.js Route Handler 是**同构框架自带的 B 端能力**，不算"另起�
 - 加载态 `role="status" aria-live="polite"`，错误态 `role="alert"`；
 - 移动端：指标网格 2 列、7 天列表隐藏次要列、24 小时横向滚动；
 - 尊重 `prefers-reduced-motion`；
-- 全部图标走本地 SVG 雪碧图（含天气现象图标），零第三方请求；图标颜色跟随 `currentColor`，深浅色主题共用一套。
+- 全部图标是本地 SVG（含天气现象图标），零第三方请求；SVG 以 React 组件形式内联，颜色跟随 `currentColor`，深浅色主题共用一套。
 
 ---
 
-## 静态资源：`public/assets` + 生成式清单
+## 静态资源：SVG 直接当组件 import，脚本只生成一个 `SvgPor` 类
 
-资源统一收在 `public/assets`，图标名用**大驼峰**（PascalCase）：
+图标源文件放在 `public/assets/svg/`，文件名即组件名（大驼峰）：
 
 ```
 public/assets/
-├── svg/                    # 源 SVG，文件名即导出名：IconMoon.svg → IconMoon
+├── svg/                     # 图标源文件
 │   ├── IconMoon.svg
 │   ├── IconSun.svg
 │   ├── IconLocate.svg
-│   └── IconArrowUpRight.svg
-├── images/                 # 位图：png / jpg / webp / avif / gif
-└── sprite.svg              # ← 由脚本生成（勿手改）
+│   ├── WeatherRain.svg      # 天气图标同样走这套
+│   └── ...
+└── images/                  # 位图（png / jpg / webp / avif / gif）
 
-src/assets/                 # ← 全部由脚本生成（勿手改）
-├── index.ts                # 统一出口：export * from manifest / icons
-├── manifest.ts             # ICONS / IMAGES / IconName / iconHref
-└── icons.tsx               # 每个图标一个 React 组件
-scripts/build-assets.mjs    # 管线脚本
+src/assets/                  # ← 以下三个文件由脚本生成，勿手改
+├── icons.ts                 # SvgPor 类 + REGISTRY + SvgIconName + svgIcon()
+├── images.ts                # IMAGES 清单（含位图像素尺寸）
+└── index.ts                 # 统一出口：import { SvgPor, svgIcon, IMAGES } from '@/assets'
+scripts/build-assets.mjs     # 管线脚本：扫 public/assets/svg → 写类
 ```
 
-`yarn assets`（`dev` / `build` 前会自动跑）做三件事：
+静态资源只有一个家：`public/assets`（图片、图标都在这里按名字管理，不用在两个目录之间搬）。但 `public/` 不在 `src` 里，默认不能当模块 import，所以 `tsconfig.json` 加了一条别名把入口补齐：
 
-1. **合成雪碧图**：把所有 `svg/*.svg` 的图形内容塞进 `sprite.svg` 的 `<symbol>` 里，id = 大驼峰文件名。这样 N 个图标只发 1 个请求，且靠浏览器缓存复用。
-2. **生成组件与清单**：每个图标在 `src/assets/icons.tsx` 里生成一个组件，`src/assets/manifest.ts` 提供 `ICONS`、`IconName`、`IMAGES`、`iconHref()`，`index.ts` 统一出口。
-3. **保护性校验**：`Icon-Moon.svg` 与 `icon-moon.svg` 归一后撞名会直接报错退出，不静默覆盖；SVG 缺 `viewBox` 也报错。
+```json
+"paths": { "@/*": ["./src/*"], "@public/*": ["./public/*"] }
+```
 
-用法：直接引入生成好的组件，不再包一层手写壳子。
+Next.js 会读 tsconfig 的 `paths`，于是生成的清单可以直接写 `import IconMoon from '@public/assets/svg/IconMoon.svg'`——文件留在 public，同时享受模块化与类型检查。
+
+`next.config.mjs` 里挂了一条 SVGR 规则：`.svg` 由 `@svgr/webpack` 编译成 React 组件（先把 Next 默认的 svg 资源规则 `exclude` 掉，避免两条规则抢同一个文件），`dimensions: false` 去掉 svg 自身的宽高、保留 `viewBox`。
+
+`yarn assets`（`dev` / `build` 前自动跑）只做三件事：列目录 → 归一成大驼峰 → 写成类。生成的 `icons.ts` 就是下面这个样子，没有别的魔法：
+
+```ts
+import IconMoon from './svg/IconMoon.svg';
+import IconSun from './svg/IconSun.svg';
+
+const REGISTRY = { IconMoon, IconSun } as const;
+
+export class SvgPor {
+  static IconMoon = IconMoon;
+  static IconSun = IconSun;
+}
+
+export type SvgIconName = keyof typeof REGISTRY;
+export function svgIcon(name: SvgIconName) {
+  return REGISTRY[name];
+}
+```
+
+用法：
 
 ```tsx
-// 1. 固定图标：一个图标一个组件
-import { IconMoon, IconLocate, WeatherRain } from '@/assets';
-<IconMoon size={17} className="text-ink" />
-<WeatherRain size={21} />
+// 1. 固定图标：直接当组件渲染，尺寸/颜色走普通 SVG props
+import { SvgPor } from '@/assets';
+<SvgPor.IconMoon width={17} height={17} className="text-ink" />
 
-// 2. 动态图标（数据里带图标名时，如 WMO 天气码）
-import { Icon } from '@/assets';
-<Icon name={condition.icon} size={48} />
-
-// 3. 位图：路径与原始尺寸都来自清单
-import { IMAGES } from '@/assets';
-<Image src={IMAGES.HeroBanner.src} width={IMAGES.HeroBanner.width} ... />
+// 2. 动态图标（WMO 天气码这种名字来自数据的情况）
+import { svgIcon } from '@/assets';
+const Glyph = svgIcon(condition.icon);
+<Glyph width={48} height={48} />
 ```
-
-天气现象也在这套体系里：`lib/weather-codes.ts` 把 WMO code 映射成 `IconName`（`WeatherClearDay` / `WeatherRain` / `WeatherSnow` / `WeatherThunder`…），昼夜用两个不同图标而不是同一个图标换色。
 
 几个刻意的决定：
 
-- **不逐个 `import` SVG 文件**：逐个 import 会被打包进 JS（图标多时体积线性增长），雪碧图则是静态资源、可缓存；且 `<symbol>` 支持 `currentColor`，换主题不用另出一套图标。
-- **清单生成而不是手写**：手写 `'/assets/svg/IconMoon.svg'` 这类字符串，改文件名不会报错，只能等线上 404。生成清单后 `IconName` 是字面量联合类型，`name="IconMooon"` 编译期就挂。
-- **位图带原始像素尺寸**：PNG 读 IHDR、JPEG 读 SOF 段，写进清单；渲染时可先占好宽高比，避免图片加载前布局抖动。
-- **SVG 的呈现属性会被继承**：脚本把外层 `<svg stroke="currentColor" fill="none">` 上的 `stroke/fill/stroke-width…` 搬到 `<symbol>` 上——否则 symbol 里只剩裸路径，图标会渲染成黑色实心块（这是实际踩过的坑）。
+- **不用 CSS Modules、不手写图标壳子**：图标就是一个导入的组件，`static` 属性把「有哪些图标」收在一个地方，展示处直接 `<SvgPor.X />`，不需要再包一层 `Icon name="…"`。
+- **清单仍然生成**：新增图标 = 丢一个 `svg` 文件 + `yarn assets`，不用同时改 import 和映射表（手写时漏一处只在渲染时才白屏）；`SvgIconName` 是字面量联合类型，`svgIcon('IconMooon')` 编译期就报。
+- **为什么还要 `REGISTRY` + `svgIcon()`**：类属性是编译期静态成员，`SvgPor[某变量]` 在 TS 下没有索引签名（会报 TS7053）。所以同一份 import 再导出一张 `const` 映射给动态场景，类则保留给固定图标的直白写法。
+- **相比雪碧图方案的取舍**：做过一版 `sprite.svg` + `<symbol>` + `<use>`（N 个图标只发 1 个请求、可缓存），但它依赖外链资源、主题色与 `viewBox` 继承容易出错，评审时也不好读。现在内联 SVG：零请求、`currentColor` 直接生效、组件级 tree-shaking，代价是同一图标多次使用时路径数据重复出现在 JS 里——本项目图标用量很小（页面 39 个实例、17 个源文件），这个代价可以接受。
 - **颜色必须显式给**：图标靠 `currentColor` 继承，按钮本身没有 `color` 时会继承到近白色，浅色主题下等于隐形。所以 `AppControls` 里显式写了 `text-ink`。
-- **不手写 `SvgIcon` 壳子**：组件由脚本按图标清单生成，新增图标 = 丢一个 SVG + `yarn assets`，不需要再动任何组件代码，也不会出现「图标漏登记」。
-- **`IconProps` 必须 `Omit<..., 'name'>`**：`SVGProps` 自带 `name?: string`（SVG 的 name 属性），不排除的话和 `IconName` 求交集会退化成 `string`，类型保护就失效了——这是生成组件时实际踩到的坑。
+- **位图带原始像素尺寸**：PNG 读 IHDR、JPEG 读 SOF 段写进清单，渲染时可先占好宽高比，避免加载前布局抖动。
 
----
+- **SVGR 规则必须与 Next 默认的 svg 资源规则互斥**：`next.config.mjs` 先 `find(rule => rule.test?.test?.('.svg'))` 给默认规则加 `exclude = /\.svg$/i`，再 push `@svgr/webpack`；否则两条规则同时命中同一个 `.svg`，构建直接报 `Module parse failed`（实际踩过）。
 
 ## 工程化：代码规范与提交约束
+
+四道质量门，全部零配置即可跑（配置是否**真的在拦截**，用探针验证过，而不是"跑过一次没报错"就算数）：
+
+| 探针 | 结果 |
+| --- | --- |
+| `src/lint-probe.ts` 里写 `var x` + `x == '1'` + `console.log()` | `no-var` / `eqeqeq` 报 **Error**、`no-console` 报 **Warning**，`next lint` 非 0 退出 |
+| `src/format-probe.ts` 里写 `export const  A= {a:1,b :2}` | `format:check` 直接 `[warn]` 并失败退出 |
+
+`yarn lint` 覆盖 `src` 与 `scripts`（`next lint --dir src --dir scripts`）；`.eslintrc.json` 里对 `scripts/**/*.mjs` 单独放开了 `no-console`——构建脚本该打印日志，业务代码不该。
 
 四道质量门，全部零配置即可跑：
 
@@ -441,7 +480,7 @@ import { IMAGES } from '@/assets';
 | `yarn format:check`| Prettier 校验（含 Tailwind class 排序）   | 全仓（`.md`/`docs` 不参与）      |
 | `yarn typecheck`   | `tsc --noEmit`                            | 全仓                             |
 | `yarn build`       | 生产构建（前置自动跑 `yarn assets`）      | 全仓                             |
-| `yarn assets`      | 生成雪碧图 + 资源清单                     | `public/assets/`、`src/assets/`  |
+| `yarn assets`      | 扫 `public/assets/svg` → 生成 `SvgPor` 类 | `src/assets/`                    |
 
 - **ESLint 规则取舍**：只加能真正影响可维护性的几条（`prefer-const`、`no-var`、`eqeqeq`、`react/self-closing-comp`），`react-hooks/exhaustive-deps` 降为 `warn`——它不是错误，但值得在评审时被看见。`next/no-img-element` 关掉，因为本项目根本不用 `<img>` 渲染照片。
 - **Prettier 与 Tailwind**：`prettier-plugin-tailwindcss` 按 Tailwind 官方顺序重排 class，避免同一组属性在文件间写法不一致；`.prettierignore` 排除 `docs/` 与 `*.md`，避免把中文表格重排得难读。

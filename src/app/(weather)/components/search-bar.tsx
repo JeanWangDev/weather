@@ -7,7 +7,7 @@ import { resolveErrorKey } from '@/config/i18n';
 import type { GeoLocation } from '@/types/weather';
 import { formatPopulation } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import { IconLocate } from '@/assets';
+import { SvgPor } from '@/assets';
 
 interface SearchBarProps {
   onSelect: (location: GeoLocation) => void;
@@ -129,8 +129,8 @@ export default function SearchBar({ onSelect, onLocate, locating }: SearchBarPro
           {locating ? (
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
           ) : (
-            /* 十字准星图标：public/assets/svg/IconLocate.svg，经雪碧图复用 */
-            <IconLocate size={16} />
+            /* 十字准星图标：public/assets/svg/IconLocate.svg，经 @public 别名 import 成组件内联渲染 */
+            <SvgPor.IconLocate width={16} height={16} />
           )}
         </button>
       </div>

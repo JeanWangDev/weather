@@ -1,13 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import CurrentWeatherCard from '@/components/current-weather-card';
-import ForecastList from '@/components/forecast-list';
-import HourlyStrip from '@/components/hourly-strip';
-import SearchBar from '@/components/search-bar';
-import TemperatureTrend from '@/components/temperature-trend';
-import LocationMap from '@/components/location-map';
-import PopularCities from '@/components/popular-cities';
+import CurrentWeatherCard from './components/current-weather-card';
+import ForecastList from './components/forecast-list';
+import HourlyStrip from './components/hourly-strip';
+import SearchBar from './components/search-bar';
+import TemperatureTrend from './components/temperature-trend';
+import LocationMap from './components/location-map';
+import PopularCities from './components/popular-cities';
 import AppControls from '@/components/app-controls';
 import BrandMark from '@/components/brand-mark';
 import { EmptyState, ErrorState, LoadingState } from '@/components/state-views';
@@ -25,7 +25,11 @@ type Notice = { key: TranslationKey; vars?: Record<string, string | number> } | 
 
 /**
  * 页面层只做编排：store 状态 → 组件，交互入口（搜索 / 定位 / 推荐城市 / 刷新）。
- * 业务逻辑在 services / stores，展示在 components。
+ *
+ * 目录约定（这是路由组 `(weather)`，圈出「天气」这个业务模块，不影响 URL）：
+ *   app/(weather)/components/  只服务本模块的业务组件（天气卡、预报、趋势、地图…）
+ *   components/                跨模块可复用的公共组件（品牌、主题/语言控件、状态视图）
+ * 业务逻辑仍然在 services / stores，组件里不放取数逻辑。
  */
 export default function HomePage() {
   const { locale, t } = useI18n();

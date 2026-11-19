@@ -1,19 +1,19 @@
 /**
  * WMO 天气代码 → 文案 / 图标（数据源无关，只认 WMO code）。
  *
- * 图标不是 emoji，而是 public/assets/svg 里的图标名（IconName）：
+ * 图标不是 emoji，而是 public/assets/svg 里的图标名（SvgIconName）：
  * ① 颜色跟随主题（currentColor），深浅色下都不用另配一套资源；
  * ② 名字有类型约束，写错编译就报，不会出现「某个天气码没图标」的静默空白；
  * ③ 昼夜差异用两个不同图标表达，而不是同一个 emoji 换个色。
  */
-import type { IconName } from '@/assets';
+import type { SvgIconName } from '@/assets';
 import type { Locale } from '@/config/i18n';
 
 interface WeatherCodeMeta {
   zh: string;
   en: string;
-  dayIcon: IconName;
-  nightIcon: IconName;
+  dayIcon: SvgIconName;
+  nightIcon: SvgIconName;
 }
 
 const CODE_MAP: Record<number, WeatherCodeMeta> = {
@@ -118,7 +118,7 @@ export function describeWeather(
   code: number,
   isDay = true,
   locale: Locale = 'zh',
-): { label: string; icon: IconName } {
+): { label: string; icon: SvgIconName } {
   const meta = CODE_MAP[code] ?? FALLBACK;
   return { label: meta[locale], icon: isDay ? meta.dayIcon : meta.nightIcon };
 }

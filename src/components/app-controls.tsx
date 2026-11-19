@@ -4,7 +4,7 @@ import { LOCALES } from '@/config/i18n';
 import { useI18n } from '@/hooks/use-i18n';
 import { usePreferenceStore } from '@/stores/use-preference-store';
 import { cn } from '@/lib/cn';
-import { IconMoon, IconSun } from '@/assets';
+import { SvgPor } from '@/assets';
 
 /**
  * 外观控制条：主题切换 + 语言切换。
@@ -51,12 +51,12 @@ export default function AppControls() {
         aria-label={isDark ? t('themeToLight') : t('themeToDark')}
         title={isDark ? t('themeToLight') : t('themeToDark')}
       >
-        {/* 图标组件由 public/assets/svg 生成；颜色随 currentColor 走主题。
+        {/* 图标来自 public/assets/svg，经 @public 别名 + SVGR 编译成组件；颜色随 currentColor 走主题。
             这里必须显式给 text-ink：按钮本身没有文字色，继承下来是近白色，浅色主题下会看不见 */}
         {isDark ? (
-          <IconSun size={17} className="text-ink" />
+          <SvgPor.IconSun width={17} height={17} className="text-ink" />
         ) : (
-          <IconMoon size={17} className="text-ink" />
+          <SvgPor.IconMoon width={17} height={17} className="text-ink" />
         )}
       </button>
     </div>

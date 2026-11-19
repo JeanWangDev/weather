@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "yarn assets && next dev",
     "build": "yarn assets && next build",
-    "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
+    "start": "node scripts/start-standalone.mjs",
+    "lint": "next lint --dir src --dir scripts",
+    "lint:fix": "next lint --fix --dir src --dir scripts",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
     "typecheck": "tsc --noEmit",
@@ -24,6 +24,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
+    "@svgr/webpack": "^8.1.0",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

@@ -1,6 +1,6 @@
 'use client';
 
-import { Icon } from '@/assets';
+import { svgIcon } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { HourlyPoint } from '@/types/weather';
 import { formatClock } from '@/lib/format';
@@ -32,6 +32,7 @@ export default function HourlyStrip({ hourly }: HourlyStripProps) {
       <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
         {hourly.map((point, index) => {
           const condition = describeWeather(point.weatherCode, true, locale);
+          const Glyph = svgIcon(condition.icon);
           const isNow = index === 0;
 
           return (
@@ -47,7 +48,7 @@ export default function HourlyStrip({ hourly }: HourlyStripProps) {
               <span className="text-[11px] text-ink-muted">
                 {isNow ? t('now') : formatClock(point.time)}
               </span>
-              <Icon name={condition.icon} size={21} />
+              <Glyph width={21} height={21} />
               <span className="text-[15px] font-semibold">{Math.round(point.temperature)}°</span>
               <span className="text-[10px] text-ink-faint">
                 {point.precipitation > 0 ? point.precipitation.toFixed(1) : '—'}
