@@ -8,13 +8,19 @@ export function formatClock(iso: string): string {
 }
 
 /** 日期串（2026-11-19）→「周三」/「Nov 19」 */
-export function formatWeekday(date: string, locale: Locale = 'zh', options: { short?: boolean } = {}): string {
+export function formatWeekday(
+  date: string,
+  locale: Locale = 'zh',
+  options: { short?: boolean } = {},
+): string {
   const parsed = new Date(`${date}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return date;
 
   return parsed.toLocaleDateString(
     INTL_LOCALE[locale],
-    options.short ? { weekday: 'short' } : { month: locale === 'zh' ? 'long' : 'short', day: 'numeric' },
+    options.short
+      ? { weekday: 'short' }
+      : { month: locale === 'zh' ? 'long' : 'short', day: 'numeric' },
   );
 }
 
@@ -29,12 +35,40 @@ export function formatUpdatedAt(iso: string, locale: Locale = 'zh'): string {
 /** 风向角度 → 方位（中/英各一套 16 方位标签） */
 const WIND_16: Record<Locale, string[]> = {
   zh: [
-    '北', '东北偏北', '东北', '东北偏东', '东', '东南偏东', '东南', '东南偏南',
-    '南', '西南偏南', '西南', '西南偏西', '西', '西北偏西', '西北', '西北偏北',
+    '北',
+    '东北偏北',
+    '东北',
+    '东北偏东',
+    '东',
+    '东南偏东',
+    '东南',
+    '东南偏南',
+    '南',
+    '西南偏南',
+    '西南',
+    '西南偏西',
+    '西',
+    '西北偏西',
+    '西北',
+    '西北偏北',
   ],
   en: [
-    'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-    'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',
+    'N',
+    'NNE',
+    'NE',
+    'ENE',
+    'E',
+    'ESE',
+    'SE',
+    'SSE',
+    'S',
+    'SSW',
+    'SW',
+    'WSW',
+    'W',
+    'WNW',
+    'NW',
+    'NNW',
   ],
 };
 
@@ -50,7 +84,11 @@ export function formatCoordinate(latitude: number, longitude: number): string {
 }
 
 /** 地点展示名：城市 · 行政区 · 国家 */
-export function formatPlaceName(location: { name: string; admin1?: string; country: string }): string {
+export function formatPlaceName(location: {
+  name: string;
+  admin1?: string;
+  country: string;
+}): string {
   return [location.name, location.admin1, location.country].filter(Boolean).join(' · ');
 }
 
@@ -59,7 +97,8 @@ export function formatPopulation(population?: number, locale: Locale = 'zh'): st
   if (!population || population <= 0) return null;
 
   if (locale === 'en') {
-    if (population >= 1_000_000) return `${(population / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (population >= 1_000_000)
+      return `${(population / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
     if (population >= 1_000) return `${Math.round(population / 1_000)}K`;
     return String(population);
   }

@@ -49,18 +49,20 @@ export async function searchLocations(query: string, lang: Locale = 'zh'): Promi
     throw new WeatherError('地点数据解析失败', 502, { cause: error });
   }
 
-  return (payload.results ?? [])
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      country: item.country ?? '',
-      admin1: item.admin1,
-      latitude: item.latitude,
-      longitude: item.longitude,
-      timezone: item.timezone ?? 'UTC',
-      population: item.population,
-    }))
-    // 上游按字符串匹配度排序，同名小地名会排在前面；按人口重排让大城市优先
-    .sort((a, b) => (b.population ?? 0) - (a.population ?? 0))
-    .slice(0, UPSTREAM.geocodeResultLimit);
+  return (
+    (payload.results ?? [])
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        country: item.country ?? '',
+        admin1: item.admin1,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        timezone: item.timezone ?? 'UTC',
+        population: item.population,
+      }))
+      // 上游按字符串匹配度排序，同名小地名会排在前面；按人口重排让大城市优先
+      .sort((a, b) => (b.population ?? 0) - (a.population ?? 0))
+      .slice(0, UPSTREAM.geocodeResultLimit)
+  );
 }

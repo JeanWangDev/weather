@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "yarn assets && next dev",
+    "build": "yarn assets && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "format": "prettier --write --ignore-unknown .",
+    "format:check": "prettier --check --ignore-unknown .",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky",
+    "assets": "node scripts/build-assets.mjs"
   },
   "dependencies": {
     "ahooks": "^3.7.11",
@@ -16,12 +22,22 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.5",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
     "postcss": "^8.4.41",
+    "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.6.0",
     "tailwindcss": "^3.4.10",
     "typescript": "^5.5.3"
-  }
+  },
+  "packageManager": "yarn@4.18.0"
 }

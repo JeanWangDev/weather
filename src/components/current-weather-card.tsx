@@ -1,5 +1,6 @@
 'use client';
 
+import { Icon } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { WeatherSnapshot } from '@/types/weather';
 import { formatClock, formatCoordinate, formatPlaceName, formatWindDirection } from '@/lib/format';
@@ -24,7 +25,12 @@ export default function CurrentWeatherCard({ data }: CurrentWeatherCardProps) {
 
   const metrics = [
     ...(typeof current.apparentTemperature === 'number'
-      ? [{ label: t('metricFeelsLike'), value: `${Math.round(current.apparentTemperature)}${units.temperature}` }]
+      ? [
+          {
+            label: t('metricFeelsLike'),
+            value: `${Math.round(current.apparentTemperature)}${units.temperature}`,
+          },
+        ]
       : []),
     { label: t('metricHumidity'), value: `${Math.round(current.humidity)}%` },
     {
@@ -35,14 +41,17 @@ export default function CurrentWeatherCard({ data }: CurrentWeatherCardProps) {
       )}`,
     },
     { label: t('metricPressure'), value: `${Math.round(current.pressure)} ${units.pressure}` },
-    { label: t('metricPrecip'), value: `${current.precipitation.toFixed(1)} ${units.precipitation}` },
+    {
+      label: t('metricPrecip'),
+      value: `${current.precipitation.toFixed(1)} ${units.precipitation}`,
+    },
   ];
 
   const threeColumns = metrics.length % 3 === 0;
 
   return (
     <section
-      className="rounded-card border border-line bg-gradient-to-br from-surface-strong to-surface p-7 pb-[22px] shadow-card backdrop-blur-xl animate-fadeUp max-sm:p-[18px]"
+      className="animate-fadeUp rounded-card border border-line bg-gradient-to-br from-surface-strong to-surface p-7 pb-[22px] shadow-card backdrop-blur-xl max-sm:p-[18px]"
       aria-label={location.name}
     >
       <header className="flex items-start justify-between gap-4">
@@ -59,12 +68,11 @@ export default function CurrentWeatherCard({ data }: CurrentWeatherCardProps) {
       </header>
 
       <div className="mb-1.5 mt-[22px] flex items-center gap-5 max-sm:flex-wrap max-sm:gap-3.5">
-        <span
-          className="text-[54px] leading-none [filter:drop-shadow(0_8px_24px_var(--accent-soft))] max-sm:text-[44px]"
-          aria-hidden
-        >
-          {condition.icon}
-        </span>
+        <Icon
+          name={condition.icon}
+          size={48}
+          className="[filter:drop-shadow(0_8px_24px_var(--accent-soft))] max-sm:h-11 max-sm:w-11"
+        />
         <div className="flex items-baseline gap-1">
           <span className="text-[64px] font-bold leading-none tracking-[-0.03em] max-sm:text-[52px]">
             {Math.round(current.temperature)}
@@ -84,10 +92,7 @@ export default function CurrentWeatherCard({ data }: CurrentWeatherCardProps) {
 
       <dl className={cn('mt-[22px] grid grid-cols-2 gap-2.5', threeColumns && 'md:grid-cols-3')}>
         {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className="rounded-tile border border-line bg-tile px-3.5 py-3"
-          >
+          <div key={metric.label} className="rounded-tile border border-line bg-tile px-3.5 py-3">
             <dt className="mb-1 text-[11px] tracking-[0.04em] text-ink-faint">{metric.label}</dt>
             <dd className="m-0 text-sm font-semibold">{metric.value}</dd>
           </div>
@@ -95,7 +100,8 @@ export default function CurrentWeatherCard({ data }: CurrentWeatherCardProps) {
       </dl>
 
       <p className="mt-[18px] text-[11px] text-ink-faint">
-        {t('provider', { provider: data.provider })} · {t('fullPlace', { place: formatPlaceName(location) })}
+        {t('provider', { provider: data.provider })} ·{' '}
+        {t('fullPlace', { place: formatPlaceName(location) })}
       </p>
     </section>
   );

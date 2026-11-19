@@ -1,5 +1,6 @@
 'use client';
 
+import { Icon } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { HourlyPoint } from '@/types/weather';
 import { formatClock } from '@/lib/format';
@@ -38,15 +39,15 @@ export default function HourlyStrip({ hourly }: HourlyStripProps) {
               key={point.time}
               className={cn(
                 'flex w-[62px] shrink-0 flex-col items-center gap-1.5 rounded-tile border px-1.5 py-3 transition-colors',
-                isNow ? 'border-accent bg-accent-soft' : 'border-transparent bg-tile hover:bg-tile-strong',
+                isNow
+                  ? 'border-accent bg-accent-soft'
+                  : 'border-transparent bg-tile hover:bg-tile-strong',
               )}
             >
               <span className="text-[11px] text-ink-muted">
                 {isNow ? t('now') : formatClock(point.time)}
               </span>
-              <span className="text-xl leading-none" aria-hidden>
-                {condition.icon}
-              </span>
+              <Icon name={condition.icon} size={21} />
               <span className="text-[15px] font-semibold">{Math.round(point.temperature)}°</span>
               <span className="text-[10px] text-ink-faint">
                 {point.precipitation > 0 ? point.precipitation.toFixed(1) : '—'}

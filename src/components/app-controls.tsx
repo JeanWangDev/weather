@@ -4,6 +4,7 @@ import { LOCALES } from '@/config/i18n';
 import { useI18n } from '@/hooks/use-i18n';
 import { usePreferenceStore } from '@/stores/use-preference-store';
 import { cn } from '@/lib/cn';
+import { IconMoon, IconSun } from '@/assets';
 
 /**
  * 外观控制条：主题切换 + 语言切换。
@@ -31,7 +32,9 @@ export default function AppControls() {
             lang={item.value === 'zh' ? 'zh-CN' : 'en'}
             className={cn(
               'rounded-pill px-2.5 py-1 text-[11px] font-semibold transition-colors',
-              locale === item.value ? 'bg-accent-soft text-accent' : 'text-ink-faint hover:text-ink',
+              locale === item.value
+                ? 'bg-accent-soft text-accent'
+                : 'text-ink-faint hover:text-ink',
             )}
             aria-pressed={locale === item.value}
             onClick={() => setLocale(item.value)}
@@ -48,7 +51,13 @@ export default function AppControls() {
         aria-label={isDark ? t('themeToLight') : t('themeToDark')}
         title={isDark ? t('themeToLight') : t('themeToDark')}
       >
-        {isDark ? '☀️' : '🌙'}
+        {/* 图标组件由 public/assets/svg 生成；颜色随 currentColor 走主题。
+            这里必须显式给 text-ink：按钮本身没有文字色，继承下来是近白色，浅色主题下会看不见 */}
+        {isDark ? (
+          <IconSun size={17} className="text-ink" />
+        ) : (
+          <IconMoon size={17} className="text-ink" />
+        )}
       </button>
     </div>
   );

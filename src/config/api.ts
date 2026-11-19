@@ -12,7 +12,6 @@ export const API_ENDPOINTS = {
   overview: `${API_BASE_PATH}/overview`,
 } as const;
 
-
 /** 上游数据源（仅在服务端使用，不进客户端 bundle） */
 export const UPSTREAM = {
   geocoding: 'https://geocoding-api.open-meteo.com/v1/search',

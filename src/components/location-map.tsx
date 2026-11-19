@@ -5,6 +5,7 @@ import { MAP_TILE, buildExternalMapUrl, buildTileUrl, hasBasemapCoverage } from 
 import { useI18n } from '@/hooks/use-i18n';
 import type { GeoLocation, HourlyPoint } from '@/types/weather';
 import { formatCoordinate } from '@/lib/format';
+import { IconArrowUpRight } from '@/assets';
 
 interface LocationMapProps {
   location: GeoLocation;
@@ -69,13 +70,13 @@ export default function LocationMap({ location, hourly }: LocationMapProps) {
 
   return (
     <section
-      className="panel flex h-full flex-col overflow-hidden p-0 animate-fadeUp"
+      className="panel flex h-full animate-fadeUp flex-col overflow-hidden p-0"
       aria-label={t('mapAria')}
     >
       <div className="relative min-h-[188px] flex-1 overflow-hidden">
         {/* 3×3 瓦片铺满容器，深色主题由 CSS 滤镜统一反相 */}
+        {/* 这里刻意用原生 img：瓦片是外部图床的固定尺寸 PNG，不需要 next/image 的优化管线 */}
         {tiles.map((tile) => (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             key={tile.key}
             src={tile.src}
@@ -124,12 +125,13 @@ export default function LocationMap({ location, hourly }: LocationMapProps) {
           {rainText}
         </p>
         <a
-          className="shrink-0 text-[12px] font-semibold text-accent transition hover:underline"
+          className="inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-accent transition hover:underline"
           href={buildExternalMapUrl(location.latitude, location.longitude, location.name)}
           target="_blank"
           rel="noreferrer"
         >
-          {t('openMap')} →
+          {t('openMap')}
+          <IconArrowUpRight size={13} />
         </a>
       </div>
     </section>

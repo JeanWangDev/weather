@@ -7,6 +7,7 @@ import { resolveErrorKey } from '@/config/i18n';
 import type { GeoLocation } from '@/types/weather';
 import { formatPopulation } from '@/lib/format';
 import { cn } from '@/lib/cn';
+import { IconLocate } from '@/assets';
 
 interface SearchBarProps {
   onSelect: (location: GeoLocation) => void;
@@ -128,25 +129,26 @@ export default function SearchBar({ onSelect, onLocate, locating }: SearchBarPro
           {locating ? (
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
           ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-              <circle cx="12" cy="12" r="6.5" />
-              <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" />
-              <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
-            </svg>
+            /* 十字准星图标：public/assets/svg/IconLocate.svg，经雪碧图复用 */
+            <IconLocate size={16} />
           )}
         </button>
       </div>
 
       {showDropdown && (
         <div
-          className="absolute left-0 right-0 top-[calc(100%+10px)] z-20 max-h-80 overflow-y-auto rounded-tile border border-line bg-surface-solid p-2 shadow-card backdrop-blur-2xl animate-dropIn"
+          className="absolute left-0 right-0 top-[calc(100%+10px)] z-20 max-h-80 animate-dropIn overflow-y-auto rounded-tile border border-line bg-surface-solid p-2 shadow-card backdrop-blur-2xl"
           role="listbox"
           aria-label={t('resultsAria')}
         >
-          {status === 'loading' && <p className="m-0 p-3 text-[13px] text-ink-faint">{t('searching')}</p>}
+          {status === 'loading' && (
+            <p className="m-0 p-3 text-[13px] text-ink-faint">{t('searching')}</p>
+          )}
 
           {status === 'error' && (
-            <p className="m-0 p-3 text-[13px] text-danger-text">{t(resolveErrorKey(errorStatus ?? 0))}</p>
+            <p className="m-0 p-3 text-[13px] text-danger-text">
+              {t(resolveErrorKey(errorStatus ?? 0))}
+            </p>
           )}
 
           {status === 'success' && results.length === 0 && (
@@ -169,7 +171,11 @@ export default function SearchBar({ onSelect, onLocate, locating }: SearchBarPro
               >
                 <span className="text-sm font-semibold">{location.name}</span>
                 <span className="text-xs text-ink-faint">
-                  {[location.admin1, location.country, formatPopulation(location.population, locale)]
+                  {[
+                    location.admin1,
+                    location.country,
+                    formatPopulation(location.population, locale),
+                  ]
                     .filter(Boolean)
                     .join(' · ') || '—'}
                 </span>

@@ -25,3 +25,11 @@ yarn-error.log*
 
 # typescript 增量构建缓存
 *.tsbuildinfo
+
+# yarn 4 本地安装状态（可重新生成，不应进仓库）
+/.yarn/install-state.gz
+/.yarn/cache
+/.yarn/unplugged
+
+# husky 9 自动生成的钩子分发目录
+/.husky/_

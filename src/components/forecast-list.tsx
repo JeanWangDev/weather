@@ -1,5 +1,6 @@
 'use client';
 
+import { Icon, IconDroplet } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { DailyForecast } from '@/types/weather';
 import { clamp, formatWeekday } from '@/lib/format';
@@ -50,14 +51,19 @@ export default function ForecastList({ daily }: ForecastListProps) {
               <span className="hidden w-[74px] shrink-0 text-[11px] text-ink-faint sm:block">
                 {formatWeekday(day.date, locale)}
               </span>
-              <span className="w-6 shrink-0 text-center text-[17px] leading-none" aria-hidden>
-                {condition.icon}
+              <span className="flex w-6 shrink-0 justify-center" aria-hidden>
+                <Icon name={condition.icon} size={18} />
               </span>
               <span className="hidden flex-1 truncate text-xs text-ink-muted sm:block">
                 {condition.label}
               </span>
-              <span className="hidden w-16 shrink-0 justify-end whitespace-nowrap text-[11px] text-ink-faint sm:flex">
-                {day.precipitation > 0 ? `💧 ${day.precipitation.toFixed(1)}mm` : ''}
+              <span className="hidden w-16 shrink-0 items-center justify-end gap-1 whitespace-nowrap text-[11px] text-ink-faint sm:flex">
+                {day.precipitation > 0 && (
+                  <>
+                    <IconDroplet size={11} />
+                    {day.precipitation.toFixed(1)}mm
+                  </>
+                )}
               </span>
               <span className="w-9 shrink-0 text-right text-ink-muted">
                 {Math.round(day.temperatureMin)}°

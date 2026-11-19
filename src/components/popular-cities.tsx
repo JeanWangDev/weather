@@ -5,6 +5,7 @@ import { useI18n } from '@/hooks/use-i18n';
 import { WeatherService } from '@/services/weather-service';
 import { ApiClientError } from '@/services/api-client-error';
 import { POPULAR_CITIES } from '@/config/cities';
+import { Icon } from '@/assets';
 import { describeWeather } from '@/lib/weather-codes';
 import type { CityOverview, GeoLocation } from '@/types/weather';
 
@@ -80,11 +81,11 @@ export default function PopularCities({ onSelect }: PopularCitiesProps) {
             {pending === name ? (
               <span className="h-3 w-3 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
             ) : (
-              condition && <span aria-hidden className="text-[13px] leading-none">{condition.icon}</span>
+              condition && <Icon name={condition.icon} size={14} aria-hidden />
             )}
             <span>{name}</span>
             {item && (
-              <span className="font-semibold text-ink tabular-nums">
+              <span className="font-semibold tabular-nums text-ink">
                 {Math.round(item.temperature)}°
               </span>
             )}

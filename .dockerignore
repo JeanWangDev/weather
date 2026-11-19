@@ -1,0 +1,23 @@
+# 依赖与构建产物都不该进构建上下文：一是变大，二是会让 COPY 层缓存失效
+node_modules
+.next
+out
+build
+.yarn/cache
+.yarn/install-state.gz
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# 版本控制与本地环境
+.git
+.gitignore
+.github
+.husky
+*.log
+
+# 文档与编辑器
+docs
+README.md
+.vscode
+.idea
+.DS_Store

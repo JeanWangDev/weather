@@ -46,9 +46,12 @@ export async function GET(request: Request) {
    * 否则同一坐标先用简称、再用全称请求时，会命中旧缓存而显示上一次的地名。
    */
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
-    return ok({ ...(cached.data as object), location }, {
-      headers: { 'Cache-Control': 'no-store' },
-    });
+    return ok(
+      { ...(cached.data as object), location },
+      {
+        headers: { 'Cache-Control': 'no-store' },
+      },
+    );
   }
 
   try {

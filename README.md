@@ -16,12 +16,25 @@ yarn install
 yarn dev            # http://localhost:3000
 ```
 
-其他命令：`yarn build` / `yarn start` / `yarn typecheck`。
+其他命令：`yarn lint` / `yarn format` / `yarn typecheck` / `yarn build` / `yarn start`。
 
 > 无需任何 API Key 或 `.env`，开箱即用。
 >
-> 包管理器为 Yarn 4（`.yarnrc.yml` 固定 `nodeLinker: node-modules`，即常规 `node_modules` 布局）。用 npm 亦可，`package-lock.json` 的等价信息在 `yarn.lock` 中。
-> 质量门为 `yarn typecheck` + `yarn build` 两道，均为零配置、零告警通过；未引入 ESLint（说明见「工程备注」）。
+> 包管理器为 Yarn 4（`.yarnrc.yml` 固定 `nodeLinker: node-modules`，即常规 `node_modules` 布局；registry 固定到 npm 官方源，保证本机与容器装到同一批包）。
+> 质量门四道：`yarn lint`（ESLint + next/core-web-vitals，零告警）、`yarn format:check`（Prettier）、`yarn typecheck`（tsc）、`yarn build`。
+
+### 用 Docker 起
+
+```bash
+docker build -t weather-app .
+docker run -p 3123:3000 weather-app
+# 或
+docker compose up --build
+```
+
+镜像为三阶段构建（deps → builder → runner），运行层只带 Next `standalone` 产物 + 非 root 用户，本机实测 **269MB**，自带 `HEALTHCHECK`。
+
+> Docker Hub 元数据在部分网络下会超时，基础镜像已做成 `ARG`：`docker build --build-arg NODE_IMAGE=<你的镜像站>/library/node:22-alpine .`
 
 ---
 
@@ -31,7 +44,21 @@ yarn dev            # http://localhost:3000
 
 ```
 tailwind.config.ts          # 设计令牌（色板/圆角/字体/动效），组件只消费语义化 token
+Dockerfile                  # 三阶段构建，运行层只带 next standalone 产物
+docker-compose.yml          # 一条命令起服务（含 healthcheck）
+.dockerignore
+.eslintrc.json              # next/core-web-vitals + prettier 兼容层 + 少量自定规则
+.prettierrc / .prettierignore
+commitlint.config.mjs       # Conventional Commits 规范
+.lintstagedrc.json          # 提交前只对暂存文件跑 eslint --fix + prettier
+.husky/pre-commit           # lint-staged + typecheck
+.husky/commit-msg           # commitlint 校验提交信息
+.yarnrc.yml                 # node-modules 布局 + 固定 npm 官方源
+public/assets/               # 静态资源：svg/（源图标，大驼峰命名）、images/（位图）
+├── sprite.svg              # ← 生成的雪碧图，勿手改
+scripts/build-assets.mjs     # 资源管线：合成雪碧图 + 生成类型化清单
 src/
+├── assets/index.ts          # ← 生成的资源总入口（ICONS / IMAGES / IconName…），勿手改
 ├── app/                    # 路由层：只做装配
 │   ├── layout.tsx
 │   ├── page.tsx            # 页面编排：store 状态 → 组件
@@ -97,6 +124,26 @@ src/
 ---
 
 ## 关键设计
+
+### 0. 为什么 `app/` 里既有页面又有 API
+
+这是 Next.js App Router 的**约定目录**，`app/` 下的每个文件夹就是一个 URL 段，具体渲染成页面还是接口，由文件名决定：
+
+```
+src/app/
+├── page.tsx              → 渲染 GET /            （页面）
+├── layout.tsx            → 所有页面的外壳
+└── api/
+    ├── geocode/route.ts  → 处理 GET /api/geocode （接口）
+    └── weather/route.ts  → 处理 GET /api/weather （接口）
+```
+
+- `route.ts` 是 Route Handler 的保留文件名（和 `page.tsx`、`layout.tsx` 同级约定）；写成 `api/weather/page.tsx` 就变成"一个页面"，而不是接口。
+- 所以 `/api/*` 放在 `app/` 下**不是放错**，反而是官方推荐位置：路由、接口共用一套 URL 结构，部署时也不需要额外服务。
+- 「页面职责」并没有被稀释：`app/page.tsx` 只做编排（store 状态 → 组件，196 行），业务组件在 `components/`，数据访问在 `server/` + `services/`。
+- 如果以后服务端逻辑变重（多服务、独立部署、需要复用给别的客户端），才把它抽成独立 Node 服务或 `server/` 独立进程——那属于超出本题范围的取舍。
+
+> 老项目里的 `pages/api/*` 是 Pages Router 的写法，和 App Router 不混用；本项目从头就是 App Router。
 
 ### 1. 状态管理：Zustand 单 store + 可辨识联合
 
@@ -322,7 +369,112 @@ Next.js Route Handler 是**同构框架自带的 B 端能力**，不算"另起�
 - 加载态 `role="status" aria-live="polite"`，错误态 `role="alert"`；
 - 移动端：指标网格 2 列、7 天列表隐藏次要列、24 小时横向滚动；
 - 尊重 `prefers-reduced-motion`；
-- 无图片资源依赖，天气图标用 emoji，零额外请求。
+- 全部图标走本地 SVG 雪碧图（含天气现象图标），零第三方请求；图标颜色跟随 `currentColor`，深浅色主题共用一套。
+
+---
+
+## 静态资源：`public/assets` + 生成式清单
+
+资源统一收在 `public/assets`，图标名用**大驼峰**（PascalCase）：
+
+```
+public/assets/
+├── svg/                    # 源 SVG，文件名即导出名：IconMoon.svg → IconMoon
+│   ├── IconMoon.svg
+│   ├── IconSun.svg
+│   ├── IconLocate.svg
+│   └── IconArrowUpRight.svg
+├── images/                 # 位图：png / jpg / webp / avif / gif
+└── sprite.svg              # ← 由脚本生成（勿手改）
+
+src/assets/                 # ← 全部由脚本生成（勿手改）
+├── index.ts                # 统一出口：export * from manifest / icons
+├── manifest.ts             # ICONS / IMAGES / IconName / iconHref
+└── icons.tsx               # 每个图标一个 React 组件
+scripts/build-assets.mjs    # 管线脚本
+```
+
+`yarn assets`（`dev` / `build` 前会自动跑）做三件事：
+
+1. **合成雪碧图**：把所有 `svg/*.svg` 的图形内容塞进 `sprite.svg` 的 `<symbol>` 里，id = 大驼峰文件名。这样 N 个图标只发 1 个请求，且靠浏览器缓存复用。
+2. **生成组件与清单**：每个图标在 `src/assets/icons.tsx` 里生成一个组件，`src/assets/manifest.ts` 提供 `ICONS`、`IconName`、`IMAGES`、`iconHref()`，`index.ts` 统一出口。
+3. **保护性校验**：`Icon-Moon.svg` 与 `icon-moon.svg` 归一后撞名会直接报错退出，不静默覆盖；SVG 缺 `viewBox` 也报错。
+
+用法：直接引入生成好的组件，不再包一层手写壳子。
+
+```tsx
+// 1. 固定图标：一个图标一个组件
+import { IconMoon, IconLocate, WeatherRain } from '@/assets';
+<IconMoon size={17} className="text-ink" />
+<WeatherRain size={21} />
+
+// 2. 动态图标（数据里带图标名时，如 WMO 天气码）
+import { Icon } from '@/assets';
+<Icon name={condition.icon} size={48} />
+
+// 3. 位图：路径与原始尺寸都来自清单
+import { IMAGES } from '@/assets';
+<Image src={IMAGES.HeroBanner.src} width={IMAGES.HeroBanner.width} ... />
+```
+
+天气现象也在这套体系里：`lib/weather-codes.ts` 把 WMO code 映射成 `IconName`（`WeatherClearDay` / `WeatherRain` / `WeatherSnow` / `WeatherThunder`…），昼夜用两个不同图标而不是同一个图标换色。
+
+几个刻意的决定：
+
+- **不逐个 `import` SVG 文件**：逐个 import 会被打包进 JS（图标多时体积线性增长），雪碧图则是静态资源、可缓存；且 `<symbol>` 支持 `currentColor`，换主题不用另出一套图标。
+- **清单生成而不是手写**：手写 `'/assets/svg/IconMoon.svg'` 这类字符串，改文件名不会报错，只能等线上 404。生成清单后 `IconName` 是字面量联合类型，`name="IconMooon"` 编译期就挂。
+- **位图带原始像素尺寸**：PNG 读 IHDR、JPEG 读 SOF 段，写进清单；渲染时可先占好宽高比，避免图片加载前布局抖动。
+- **SVG 的呈现属性会被继承**：脚本把外层 `<svg stroke="currentColor" fill="none">` 上的 `stroke/fill/stroke-width…` 搬到 `<symbol>` 上——否则 symbol 里只剩裸路径，图标会渲染成黑色实心块（这是实际踩过的坑）。
+- **颜色必须显式给**：图标靠 `currentColor` 继承，按钮本身没有 `color` 时会继承到近白色，浅色主题下等于隐形。所以 `AppControls` 里显式写了 `text-ink`。
+- **不手写 `SvgIcon` 壳子**：组件由脚本按图标清单生成，新增图标 = 丢一个 SVG + `yarn assets`，不需要再动任何组件代码，也不会出现「图标漏登记」。
+- **`IconProps` 必须 `Omit<..., 'name'>`**：`SVGProps` 自带 `name?: string`（SVG 的 name 属性），不排除的话和 `IconName` 求交集会退化成 `string`，类型保护就失效了——这是生成组件时实际踩到的坑。
+
+---
+
+## 工程化：代码规范与提交约束
+
+四道质量门，全部零配置即可跑：
+
+| 命令               | 作用                                      | 覆盖范围                         |
+| ------------------ | ----------------------------------------- | -------------------------------- |
+| `yarn lint`        | ESLint：`next/core-web-vitals` + 少量自定 | `src/**`                         |
+| `yarn format:check`| Prettier 校验（含 Tailwind class 排序）   | 全仓（`.md`/`docs` 不参与）      |
+| `yarn typecheck`   | `tsc --noEmit`                            | 全仓                             |
+| `yarn build`       | 生产构建（前置自动跑 `yarn assets`）      | 全仓                             |
+| `yarn assets`      | 生成雪碧图 + 资源清单                     | `public/assets/`、`src/assets/`  |
+
+- **ESLint 规则取舍**：只加能真正影响可维护性的几条（`prefer-const`、`no-var`、`eqeqeq`、`react/self-closing-comp`），`react-hooks/exhaustive-deps` 降为 `warn`——它不是错误，但值得在评审时被看见。`next/no-img-element` 关掉，因为本项目根本不用 `<img>` 渲染照片。
+- **Prettier 与 Tailwind**：`prettier-plugin-tailwindcss` 按 Tailwind 官方顺序重排 class，避免同一组属性在文件间写法不一致；`.prettierignore` 排除 `docs/` 与 `*.md`，避免把中文表格重排得难读。
+
+### Git 钩子（Husky 9 + lint-staged + commitlint）
+
+```
+git commit
+  └─ pre-commit  → lint-staged：只对本次 git add 的文件跑 eslint --fix + prettier
+                 → typecheck：全量类型检查（类型错误跨文件，无法只看单个文件）
+  └─ commit-msg  → commitlint：校验 Conventional Commits（type(scope): subject）
+```
+
+- **为什么用 lint-staged 而不是每次全量 lint**：提交要快。只处理暂存文件可以把 pre-commit 控制在 1~3 秒；类型检查则仍然全量，因为它无法只做增量。
+- **提交信息规范**：`feat / fix / refactor / style / perf / test / docs / build / ci / chore / revert`，subject 不超过 72 字符。评审用 `git log --oneline` 就能读出功能演进顺序。
+- 钩子由 `yarn prepare`（即 `husky`）在 `yarn install` 后自动安装，`/.husky/_` 已进 `.gitignore`（husky 自动生成的分发目录）。
+
+### Docker
+
+三阶段构建，思路是「让每一层只包含它该有的东西」：
+
+| 阶段 | 内容 | 为什么要独立成层 |
+| --- | --- | --- |
+| `deps` | 只装 node_modules | 改业务代码时命中缓存，不必重装依赖（本项目装依赖约 4 分钟） |
+| `builder` | `yarn build` 产物 | 编译期需要源码 + devDeps，运行期完全不需要 |
+| `runner` | `.next/standalone` + `.next/static` | `output: 'standalone'` 已把运行所需的最小 node_modules 打进产物，运行层不再搬整棵依赖树 |
+
+运行层细节：非 root（`nextjs:nodejs`）、`HEALTHCHECK` 用 Node 内置 `fetch` 自检（不额外装 curl）、`NEXT_TELEMETRY_DISABLED=1`、端口 3000 由 compose 映射到 3123。实测镜像 **269MB**，启动到 healthy 约 5 秒。
+
+两个环境适配点（不是花活，是踩出来的）：
+
+1. **基础镜像做成 `ARG`**：Docker Hub 元数据在部分网络会 `DeadlineExceeded`，可用 `--build-arg NODE_IMAGE=<镜像站>/library/node:22-alpine` 切换。
+2. **Yarn 4 CLI 用 Node 的 `fetch` 下载，而不是 corepack/apk**：corepack 会在每个 stage 各下载一次 CLI，网络一抖整层失败；精简镜像里 `apk` 的索引域常常也解析不到，装不了 curl。用 Node 自带 fetch 落地成 `/usr/local/bin/yarn`，只下一层。
 
 ---
 
@@ -382,7 +534,7 @@ Next.js Route Handler 是**同构框架自带的 B 端能力**，不算"另起�
 5. `/api/overview` 必须回传 `query`——上游把 `New York` 译成「紐約市」，按 `location.name` 建索引会导致胶囊永远缺温度。
 6. 温度折线的数值不能写进 SVG——卡片用了 `preserveAspectRatio="none"`，文字会被横向拉变形，改用 HTML 叠层按百分比定位。
 7. 地图瓦片深色是 CSS 滤镜反相，不是另一套底图源——高德没有官方暗色瓦片；境外城市必须走覆盖判定分支，不要"顺手"换成 Esri：其海外 z11 返回「Map data not yet available」灰图。
-8. 不引入 ESLint：`next lint` 与独立 `eslint` 在本仓库依赖形态下都会在加载配置阶段崩溃（`eslint-config-next` + 虚拟路径），属于工具链兼容问题而非代码问题。与其留一条跑不通的命令，不如把质量门收敛为 `typecheck` + `build`。
+8. ESLint 只有在 `nodeLinker: node-modules` 下才可用：同一套 `eslint-config-next` 在 Yarn PnP 下会因虚拟包路径 + `import-fresh` 在加载配置阶段崩掉（表现为 `Cannot read properties of undefined`）。所以「ESLint 能不能跑」是本仓库依赖形态的探针，不是独立问题。
 9. `.yarnrc.yml` 必须保留 `nodeLinker: node-modules`：Yarn PnP 模式下 Next 14 的 telemetry（`conf` 依赖）在 Node 22 会直接抛 `Cannot convert undefined or null to object`，`next build` 完全无法启动。
 
 ### 本次清理记录
@@ -393,8 +545,9 @@ Next.js Route Handler 是**同构框架自带的 B 端能力**，不算"另起�
 | 删除死代码   | `config/env.ts` 的 `getAppEnv()` 与 `AppEnv` 类型、`config/api.ts` 的 `ApiEndpoint` 类型 | 全仓零引用，tsc 与 grep 双向确认                        |
 | 删除构建缓存 | 根目录`tsconfig.tsbuildinfo`                                                             | 本地产物，不应进仓库；`.gitignore` 已补 `*.tsbuildinfo` |
 | 删除孤儿资源 | `docs/preview-forecast.png`                                                              | README 未引用，且与现有截图同为深色主题，重复           |
-| 移除 ESLint  | `.eslintrc.json`、`lint` script、`eslint` / `eslint-config-next` 依赖                     | 见踩坑备注 8：命令跑不通就不该留在仓库里                |
-| 固定链接方式 | 新增 `.yarnrc.yml`（`nodeLinker: node-modules`）                                          | 见踩坑备注 9：PnP 下 `next build` 无法启动              |
+| 移除 ESLint（后又装回） | 先删 `.eslintrc.json`、`lint` script、`eslint` 依赖，切回 node-modules 后重新装回并跑通 | 见踩坑备注 8：命令跑不通就不该留在仓库里；修好前置条件再装回来 |
+| 固定链接方式 | 新增 `.yarnrc.yml`（`nodeLinker: node-modules`、固定 npm 官方源）                       | 见踩坑备注 9：PnP 下 `next build` 无法启动              |
+| 取消跟踪     | `.yarn/install-state.gz`                                                                | 本地安装状态，可重新生成；已进 `.gitignore`             |
 | 保留         | `.next/`（85MB）、`node_modules/`                                                        | 已在`.gitignore` 中，属于本地运行产物，非"无用文件"     |
 
 ---
@@ -420,3 +573,6 @@ Next.js Route Handler 是**同构框架自带的 B 端能力**，不算"另起�
 | 默认城市（首屏不空） | `config/cities.ts` 的 `DEFAULT_CITY` + `stores/use-preference-store.ts` 的 `lastLocation` |
 | 推荐城市（带温度）   | `components/popular-cities.tsx` + `app/api/overview` + `server/weather/overview.ts`       |
 | 位置地图             | `components/location-map.tsx` + `config/map.ts`                                           |
+| 代码规范             | `.eslintrc.json`（next/core-web-vitals）+ `.prettierrc`（含 Tailwind 排序）                |
+| 提交约束             | `.husky/pre-commit`（lint-staged + typecheck）+ `.husky/commit-msg`（commitlint）          |
+| 容器化部署           | `Dockerfile`（三阶段、standalone、非 root、healthcheck）+ `docker-compose.yml`              |

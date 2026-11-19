@@ -39,7 +39,9 @@ export default function TemperatureTrend({ hourly }: TemperatureTrendProps) {
   const x = (index: number) => (index / last) * WIDTH;
   const y = (value: number) => BOTTOM - ((value - min) / span) * usable;
 
-  const line = hourly.map((point, index) => `${x(index).toFixed(1)},${y(point.temperature).toFixed(1)}`).join(' ');
+  const line = hourly
+    .map((point, index) => `${x(index).toFixed(1)},${y(point.temperature).toFixed(1)}`)
+    .join(' ');
   const area = `M0,${BOTTOM} L${line.replace(/ /g, ' L')} L${WIDTH},${BOTTOM} Z`;
 
   const axisIndexes = [0, Math.round(last / 3), Math.round((last * 2) / 3), last];
@@ -63,17 +65,18 @@ export default function TemperatureTrend({ hourly }: TemperatureTrendProps) {
       const duplicated = kept.some((item) => item.index === candidate.index);
       if (duplicated) {
         return kept.map((item) =>
-          item.index === candidate.index ? { ...item, highlight: item.highlight || candidate.highlight } : item,
+          item.index === candidate.index
+            ? { ...item, highlight: item.highlight || candidate.highlight }
+            : item,
         );
       }
-      const near = kept.find(
-        (item) => Math.abs(x(candidate.index) - x(item.index)) / WIDTH < 0.05,
-      );
+      const near = kept.find((item) => Math.abs(x(candidate.index) - x(item.index)) / WIDTH < 0.05);
       if (!near) return [...kept, candidate];
 
       // 靠得太近：只在「是极值且数值确实不同」时才硬插，否则和邻居的数字重复且更挤
       const sameValue =
-        Math.round(hourly[candidate.index].temperature) === Math.round(hourly[near.index].temperature);
+        Math.round(hourly[candidate.index].temperature) ===
+        Math.round(hourly[near.index].temperature);
       return candidate.highlight && !sameValue ? [...kept, candidate] : kept;
     }, []);
 
@@ -131,7 +134,8 @@ export default function TemperatureTrend({ hourly }: TemperatureTrendProps) {
                 {(index % 3 === 0 || index === last) && (
                   <circle cx={x(index)} cy={y(point.temperature)} r="3" fill="var(--accent)">
                     <title>
-                      {formatClock(point.time)} · {Math.round(point.temperature)}° · {condition.label}
+                      {formatClock(point.time)} · {Math.round(point.temperature)}° ·{' '}
+                      {condition.label}
                     </title>
                   </circle>
                 )}
@@ -153,7 +157,7 @@ export default function TemperatureTrend({ hourly }: TemperatureTrendProps) {
               <span
                 key={`${point.time}-label`}
                 className={cn(
-                  'absolute whitespace-nowrap rounded-pill border bg-surface-solid px-1.5 py-0.5 text-[10.5px] font-semibold leading-none tabular-nums',
+                  'absolute whitespace-nowrap rounded-pill border bg-surface-solid px-1.5 py-0.5 text-[10.5px] font-semibold tabular-nums leading-none',
                   highlight ? 'border-accent-line text-accent' : 'border-line text-ink-muted',
                 )}
                 style={{

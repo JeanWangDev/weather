@@ -133,7 +133,11 @@ export default function HomePage() {
 
           <div className="flex items-center gap-2.5">
             <AppControls />
-            <BrandMark locating={geolocation.locating} label={t('locate')} onClick={geolocation.locate} />
+            <BrandMark
+              locating={geolocation.locating}
+              label={t('locate')}
+              onClick={geolocation.locate}
+            />
           </div>
         </div>
 
