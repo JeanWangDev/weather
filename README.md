@@ -468,6 +468,7 @@ const Glyph = svgIcon(condition.icon);
 | 探针 | 结果 |
 | --- | --- |
 | `src/lint-probe.ts` 里写 `var x` + `x == '1'` + `console.log()` | `no-var` / `eqeqeq` 报 **Error**、`no-console` 报 **Warning**，`next lint` 非 0 退出 |
+| `src/.../__probe2.tsx` 里写一个未使用的 `const` + 一个 `any` | `@typescript-eslint/no-unused-vars` 报 **Error**、`no-explicit-any` 报 **Warning**（这条曾漏配，见下） |
 | `src/format-probe.ts` 里写 `export const  A= {a:1,b :2}` | `format:check` 直接 `[warn]` 并失败退出 |
 
 `yarn lint` 覆盖 `src` 与 `scripts`（`next lint --dir src --dir scripts`）；`.eslintrc.json` 里对 `scripts/**/*.mjs` 单独放开了 `no-console`——构建脚本该打印日志，业务代码不该。
@@ -482,7 +483,14 @@ const Glyph = svgIcon(condition.icon);
 | `yarn build`       | 生产构建（前置自动跑 `yarn assets`）      | 全仓                             |
 | `yarn assets`      | 扫 `public/assets/svg` → 生成 `SvgPor` 类 | `src/assets/`                    |
 
-- **ESLint 规则取舍**：只加能真正影响可维护性的几条（`prefer-const`、`no-var`、`eqeqeq`、`react/self-closing-comp`），`react-hooks/exhaustive-deps` 降为 `warn`——它不是错误，但值得在评审时被看见。`next/no-img-element` 关掉，因为本项目根本不用 `<img>` 渲染照片。
+- **ESLint 配置踩过的坑（值得单独说）**：最初 `extends` 只有 `next/core-web-vitals` + `prettier`，**没有注册 `@typescript-eslint` 插件**。结果是 `no-var` / `eqeqeq` 这类通用规则在跑，但所有 TS 语义规则（未使用变量、`any`、implicit any…）从未生效——`next lint` 永远返回 "No ESLint warnings"，观感上就是「ESLint 没生效」。修法：`plugins: ["@typescript-eslint"]` + `extends: ["plugin:@typescript-eslint/recommended"]`（`prettier` 放最后，避免格式规则与 ESLint 打架），并显式打开 `@typescript-eslint/no-unused-vars`（`^_` 前缀豁免）与 `no-explicit-any`（`warn`）。
+- **不配 `parserOptions.project`**：typed rules 才需要它；一旦配上，`scripts/*.mjs`、`*.config.mjs` 这些不在 `tsconfig.include` 里的文件会直接解析失败（`ESLint was configured to run on … However, that TSConfig does not include this file`）。本项目没用 typed rules，所以直接去掉，避免为了一个用不到的能力牺牲整个 scripts 目录的 lint 覆盖。
+- **编辑器侧也要配**：`.vscode/settings.json` 里 `eslint.validate` 明确列出 `typescript` / `typescriptreact`（默认只校验 `.js`，TS 文件在编辑器里常常静默不报，这也是"看起来没生效"的另一半原因），并开启保存时 `source.fixAll.eslint`；`extensions.json` 推荐 ESLint / Prettier / Tailwind 三个扩展。
+- **规则分三层写，不是一锅乱炖**：
+  - 通用正确性（error）：`eqeqeq`（`null` 豁免）、`no-var`、`prefer-const`（含解构）、`no-debugger`、`no-alert`；`no-console` 为 `warn` 且只放行 `warn/error`。
+  - TypeScript（error）：`@typescript-eslint/no-unused-vars`（`args: after-used`、`^_` 豁免、`ignoreRestSiblings`）、`consistent-type-imports`（`inline-type-imports`，类型导入不被当成运行时依赖打进包）、`array-type`（简单类型统一 `T[]`）、`ban-ts-comment`（禁止 `@ts-ignore`，`@ts-expect-error` 必须写够 5 字符理由）；`no-explicit-any`、`no-non-null-assertion` 为 `warn`——它们不是绝对错误，但评审时值得被指出来。
+  - React / Next：`react/self-closing-comp`、`react/jsx-key`（含 fragment 简写检查）、`react/jsx-boolean-value`（省略 `={true}`）、`react/jsx-curly-brace-presence`（禁止无意义的 `"{'文本'}"`）；`react/no-array-index-key` 与 `react-hooks/exhaustive-deps` 为 `warn`。`@next/next/no-img-element` 关掉，因为本项目根本不用 `<img>` 渲染照片。
+- **`react/no-array-index-key` 是抓到了真问题的**：骨架屏原本 `Array.from({length:6}).map((_, index) => key={index})`，改成固定的具名 id（`SKELETON_TILES`）。下标做 key 看似无害，但一旦占位块顺序/数量变化就会错位复用，是典型的"日后才暴露"的隐患。
 - **Prettier 与 Tailwind**：`prettier-plugin-tailwindcss` 按 Tailwind 官方顺序重排 class，避免同一组属性在文件间写法不一致；`.prettierignore` 排除 `docs/` 与 `*.md`，避免把中文表格重排得难读。
 
 ### Git 钩子（Husky 9 + lint-staged + commitlint）

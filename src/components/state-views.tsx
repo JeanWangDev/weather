@@ -1,6 +1,9 @@
 'use client';
 
 /** 初始空状态：给快捷城市入口，避免白屏 */
+/** 骨架屏占位块。固定的具名 id，而不是把数组下标当 key —— 下标做 key 在列表顺序变化时会错位 */
+const SKELETON_TILES = ['tile-a', 'tile-b', 'tile-c', 'tile-d', 'tile-e', 'tile-f'] as const;
+
 export function EmptyState({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="flex min-h-[320px] flex-col items-center justify-center gap-2.5 rounded-card border border-dashed border-line bg-surface p-9 text-center">
@@ -26,8 +29,8 @@ export function LoadingState({ label }: { label: string }) {
         <span className="skeleton block h-4 w-2/5 rounded-lg" />
         <span className="skeleton block h-11 w-3/5 rounded-lg" />
         <div className="mt-1.5 grid grid-cols-3 gap-2.5">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <span key={index} className="skeleton block h-[58px] rounded-tile" />
+          {SKELETON_TILES.map((tile) => (
+            <span key={tile} className="skeleton block h-[58px] rounded-tile" />
           ))}
         </div>
       </div>

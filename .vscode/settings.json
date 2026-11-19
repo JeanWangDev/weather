@@ -1,0 +1,15 @@
+{
+  // 让 ESLint 在编辑器里对 TS/TSX 真正生效（默认只校验 .js，TS 文件常常静默不报）
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  // 本项目用的是 .eslintrc.json（ESLint 8 传统配置），关掉 flat config 探测
+  "eslint.useFlatConfig": false,
+  "eslint.runtime": "node",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "prettier.requireConfig": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}
