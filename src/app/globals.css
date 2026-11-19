@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * 主题令牌：深色为默认，浅色只覆盖变量值。
+ * 组件只消费语义类名（bg-surface / text-ink-muted / border-line …），
+ * 因此新增主题 = 在下面加一段变量覆盖，零组件改动。
+ */
+:root,
+[data-theme='dark'] {
+  --base: #0b1424;
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-strong: rgba(255, 255, 255, 0.09);
+  --surface-solid: rgba(12, 22, 40, 0.72);
+  --tile: rgba(255, 255, 255, 0.045);
+  --tile-strong: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --ink: #f2f6ff;
+  --ink-muted: rgba(226, 235, 255, 0.72);
+  --ink-faint: rgba(210, 222, 245, 0.5);
+  --accent: #5cc8ff;
+  --accent-soft: rgba(92, 200, 255, 0.14);
+  --accent-line: rgba(92, 200, 255, 0.45);
+  --danger: #ff7b6b;
+  --danger-soft: rgba(255, 123, 107, 0.12);
+  --danger-text: #ffc4bd;
+  --chart-from: #4fa8ff;
+  --chart-to: #ffb45c;
+  --shadow-card: 0 24px 60px -30px rgba(3, 10, 25, 0.9);
+  --glow-a: rgba(65, 133, 255, 0.28);
+  --glow-b: rgba(45, 200, 210, 0.2);
+  --glow-c: rgba(120, 82, 220, 0.18);
+  --skeleton: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0.06)
+  );
+}
+
+[data-theme='light'] {
+  --base: #eef3fb;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --surface-solid: rgba(255, 255, 255, 0.86);
+  --tile: rgba(255, 255, 255, 0.62);
+  --tile-strong: rgba(255, 255, 255, 0.9);
+  --line: rgba(16, 38, 76, 0.12);
+  --line-strong: rgba(16, 38, 76, 0.24);
+  --ink: #0d1a2e;
+  --ink-muted: rgba(18, 34, 60, 0.72);
+  --ink-faint: rgba(18, 34, 60, 0.5);
+  --accent: #0f7fd0;
+  --accent-soft: rgba(15, 127, 208, 0.12);
+  --accent-line: rgba(15, 127, 208, 0.4);
+  --danger: #d2432f;
+  --danger-soft: rgba(210, 67, 47, 0.1);
+  --danger-text: #8f2417;
+  --chart-from: #2f7fe0;
+  --chart-to: #e08a1e;
+  --shadow-card: 0 20px 45px -28px rgba(16, 38, 76, 0.45);
+  --glow-a: rgba(90, 150, 255, 0.22);
+  --glow-b: rgba(60, 190, 200, 0.16);
+  --glow-c: rgba(150, 120, 230, 0.14);
+  --skeleton: linear-gradient(
+    90deg,
+    rgba(16, 38, 76, 0.06),
+    rgba(16, 38, 76, 0.14),
+    rgba(16, 38, 76, 0.06)
+  );
+}
+
+@layer base {
+  html,
+  body {
+    @apply min-h-full;
+  }
+
+  body {
+    @apply bg-base font-sans text-ink antialiased;
+    background-image:
+      radial-gradient(1100px 600px at 12% -10%, var(--glow-a), transparent 62%),
+      radial-gradient(900px 520px at 92% 0%, var(--glow-b), transparent 60%),
+      radial-gradient(800px 500px at 50% 110%, var(--glow-c), transparent 65%);
+    background-attachment: fixed;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+  }
+
+  input[type='search']::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+@layer utilities {
+  /* 玻璃拟态卡片：所有面板共用一套材质，避免各页面各写一份 backdrop-filter */
+  .panel {
+    @apply rounded-card border border-line bg-surface backdrop-blur-xl;
+  }
+
+  .skeleton {
+    background-image: var(--skeleton);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* 高德瓦片是浅色底图；深色主题下用滤镜反相，把底图压成深色，避免整页被点亮 */
+  .map-tiles {
+    filter: saturate(1.05) contrast(1.02);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+[data-theme='dark'] .map-tiles {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.82) contrast(0.92) saturate(0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
