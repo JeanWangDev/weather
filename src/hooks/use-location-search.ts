@@ -10,7 +10,7 @@ import type { GeoLocation } from '@/types/weather';
 const DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
 
-export type SearchStatus = 'idle' | 'typing' | 'loading' | 'success' | 'error';
+type SearchStatus = 'idle' | 'typing' | 'loading' | 'success' | 'error';
 
 interface UseLocationSearchResult {
   query: string;

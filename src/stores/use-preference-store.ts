@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
 import type { Locale } from '@/config/i18n';
 import type { GeoLocation } from '@/types/weather';
 
-export type Theme = 'dark' | 'light';
+type Theme = 'dark' | 'light';
 
 interface PreferenceStore {
   locale: Locale;
@@ -31,7 +31,7 @@ function applyPreferences(theme: Theme, locale: Locale): void {
   html.style.colorScheme = theme;
 }
 
-export const PREFERENCE_STORAGE_KEY = 'weather:prefs';
+const PREFERENCE_STORAGE_KEY = 'weather:prefs';
 
 export const usePreferenceStore = create<PreferenceStore>()(
   persist(

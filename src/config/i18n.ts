@@ -24,8 +24,6 @@ const zh = {
   resultsAria: '地点搜索结果',
 
   locate: '使用我的位置',
-  locating: '正在定位…',
-  locateHint: '允许浏览器访问位置后，会自动显示你所在城市的天气',
   locationDenied: '定位权限被拒绝，可在浏览器设置里允许后重试',
   locationUnavailable: '当前环境拿不到位置信息，请手动搜索城市',
   locationTimeout: '定位超时，请重试或手动搜索',
@@ -71,14 +69,12 @@ const zh = {
   errorServer: '天气服务暂时不可用，请稍后重试',
   errorGeneric: '天气加载失败，请重试',
 
-  mapTitle: '位置',
   mapAria: '位置地图',
   openMap: '打开地图',
   mapAttribution: '底图 高德地图',
   mapUnavailable: '该地区暂无底图预览，可点「打开地图」查看',
   rainNone: '未来两小时预计无降水，可以放心出门',
   rainSome: '未来两小时可能有降水，记得带伞',
-  defaultCity: '默认城市',
 
   themeToLight: '切换到浅色主题',
   themeToDark: '切换到深色主题',
@@ -102,8 +98,6 @@ const en: Dictionary = {
   resultsAria: 'Location search results',
 
   locate: 'Use my location',
-  locating: 'Locating…',
-  locateHint: 'Allow location access and we will show the weather where you are',
   locationDenied: 'Location permission denied. Allow it in browser settings and retry',
   locationUnavailable: 'Location is unavailable here, please search a city instead',
   locationTimeout: 'Location request timed out, retry or search manually',
@@ -149,14 +143,12 @@ const en: Dictionary = {
   errorServer: 'Weather service is temporarily unavailable',
   errorGeneric: 'Failed to load weather, please retry',
 
-  mapTitle: 'Location',
   mapAria: 'Location map',
   openMap: 'Open map',
   mapAttribution: 'Basemap © Amap',
   mapUnavailable: 'No basemap preview for this region — open in Maps',
   rainNone: 'No rain expected in the next 2 hours',
   rainSome: 'Rain possible within 2 hours — bring an umbrella',
-  defaultCity: 'Default city',
 
   themeToLight: 'Switch to light theme',
   themeToDark: 'Switch to dark theme',

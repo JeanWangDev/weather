@@ -40,7 +40,8 @@ RUN addgroup --system --gid 1001 nodejs \
 # standalone 里有 server.js 与被裁剪过的 node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# 静态资源（本项目无 public 目录以外的上传物，保留该行以便后续加图标/字体时开箱可用）
+# public 里有 SVG 图标源文件（构建期被 SVGR 编译进 JS，同时也可按 /assets/svg/x.svg 直接访问）
+# 位图若后续放进 public/assets/images，这一行保证镜像里同样可用
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs

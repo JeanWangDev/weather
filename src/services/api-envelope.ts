@@ -1,7 +1,7 @@
 import { ApiClientError } from './api-client-error';
 
 /** 统一响应信封：{ code, success, message, timestamp, data } */
-export interface IApiResponse<T = unknown> {
+interface IApiResponse<T = unknown> {
   code?: number;
   message?: string;
   msg?: string;

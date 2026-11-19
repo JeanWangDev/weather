@@ -13,7 +13,7 @@ import type { GeoLocation, WeatherSnapshot } from '@/types/weather';
  * - 10 分钟缓存：同城来回切换不重复打接口，refresh 强制绕过；
  * - 错误只存 HTTP 状态码，文案交给 i18n 层翻译（换语言时错误提示也随之切换）。
  */
-export type WeatherState =
+type WeatherState =
   | { status: 'idle' }
   | { status: 'loading'; location: GeoLocation }
   | { status: 'success'; location: GeoLocation; data: WeatherSnapshot }

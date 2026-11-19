@@ -17,7 +17,7 @@ export interface GeoLocation {
   population?: number;
 }
 
-export interface CurrentWeather {
+interface CurrentWeather {
   /** 当地时间，形如 2026-11-19T14:00 */
   time: string;
   temperature: number;

@@ -11,7 +11,7 @@ import { isApiEnvelope, resolveApiMessage, unwrapApiData } from './api-envelope'
  * 但对外契约保持一致：sendRequest 只返回 data，失败一律抛 ApiClientError。
  */
 
-export interface IRequestConfig {
+interface IRequestConfig {
   url: string;
   method?: 'GET' | 'POST';
   params?: Record<string, string | number | undefined>;

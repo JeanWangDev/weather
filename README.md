@@ -2,6 +2,10 @@
 
 用 Next.js 14 + React 18 + TypeScript + Tailwind CSS 实现的城市天气应用：搜索地点、当前天气、未来 24 小时与未来 7 天预报，加载态 / 错误态 / 空态齐全。
 
+**已经做完的**：地点搜索（防抖 + 竞态取消）｜当前天气（温度/湿度/风速/气压/降水）｜未来 24 小时逐时｜未来 7 天高低温区间条 + 降水概率外的降水mm｜浏览器定位 + 逆地理编码｜温度趋势折线（悬停看细节）｜深色/浅色换肤｜中英切换｜默认城市记忆｜热门城市胶囊（实时温度）｜位置地图（真实瓦片 + 境外降级）｜Loading / Error / Empty 三态｜统一响应信封 + 真实 HTTP 状态码。
+
+**环境要求**：Node ≥ 18（开发用 22 更稳）、Yarn 4（`corepack enable` 即可）。无需 API Key、无需 `.env`。
+
 ![tech](https://img.shields.io/badge/Next.js-14.2-000) ![tech](https://img.shields.io/badge/React-18.3-61dafb) ![tech](https://img.shields.io/badge/TypeScript-5.5-3178c6) ![tech](https://img.shields.io/badge/TailwindCSS-3.4-38bdf8) ![tech](https://img.shields.io/badge/Zustand-5-764abc)
 
 ![深色 · 中文：推荐城市胶囊带温度 + 天气卡与地图并排](docs/preview-current.png)
@@ -37,6 +41,32 @@ docker compose up --build
 镜像为三阶段构建（deps → builder → runner），运行层只带 Next `standalone` 产物 + 非 root 用户，本机实测 **269MB**，自带 `HEALTHCHECK`。
 
 > Docker Hub 元数据在部分网络下会超时，基础镜像已做成 `ARG`：`docker build --build-arg NODE_IMAGE=<你的镜像站>/library/node:22-alpine .`
+
+---
+
+## 一张图看懂数据流
+
+```
+浏览器
+  │  ① 用户操作（搜索 / 点击胶囊 / 点定位）
+  ▼
+app/(weather)/page.tsx ──► stores/use-weather-store（状态机 + 单飞 + 10min 缓存）
+  │                                   │
+  │                                   ▼
+  │                        services/weather-service ──► services/api-client（超时 / 错误归一化）
+  │                                   │
+  │ ② 只请求自家 /api/*               ▼
+  │                        app/api/{geocode,weather,location,overview}/route.ts
+  │                                   │
+  │                                   ▼
+  │                        server/{envelope,weather/*}（适配器 + 10min 进程内缓存）
+  │                                   │
+  │ ③ 服务端代理，避免 CORS/UA 问题     ▼
+  └──────────────────────── 上游：MET Norway 预报 / Open-Meteo 地理编码 / 逆地理 / 高德瓦片
+```
+
+- 客户端只认 `/api/*` 与统一信封，**从不直连上游**（UA 要求、CORS、缓存策略都收在服务端一处）。
+- `stores` 只负责状态与请求生命周期，`services` 只管取数，`lib` 全是纯函数——任一层可单独替换。
 
 ---
 
@@ -455,7 +485,7 @@ const Glyph = svgIcon(condition.icon);
 - **不用 CSS Modules、不手写图标壳子**：图标就是一个导入的组件，`static` 属性把「有哪些图标」收在一个地方，展示处直接 `<SvgPor.X />`，不需要再包一层 `Icon name="…"`。
 - **清单仍然生成**：新增图标 = 丢一个 `svg` 文件 + `yarn assets`，不用同时改 import 和映射表（手写时漏一处只在渲染时才白屏）；`SvgIconName` 是字面量联合类型，`svgIcon('IconMooon')` 编译期就报。
 - **为什么还要 `REGISTRY` + `svgIcon()`**：类属性是编译期静态成员，`SvgPor[某变量]` 在 TS 下没有索引签名（会报 TS7053）。所以同一份 import 再导出一张 `const` 映射给动态场景，类则保留给固定图标的直白写法。
-- **相比雪碧图方案的取舍**：做过一版 `sprite.svg` + `<symbol>` + `<use>`（N 个图标只发 1 个请求、可缓存），但它依赖外链资源、主题色与 `viewBox` 继承容易出错，评审时也不好读。现在内联 SVG：零请求、`currentColor` 直接生效、组件级 tree-shaking，代价是同一图标多次使用时路径数据重复出现在 JS 里——本项目图标用量很小（页面 39 个实例、17 个源文件），这个代价可以接受。
+- **相比雪碧图方案的取舍**：做过一版 `sprite.svg` + `<symbol>` + `<use>`（N 个图标只发 1 个请求、可缓存），但它依赖外链资源、主题色与 `viewBox` 继承容易出错，评审时也不好读。现在内联 SVG：零请求、`currentColor` 直接生效、组件级 tree-shaking，代价是同一图标多次使用时路径数据重复出现在 JS 里——本项目图标用量很小（首页单帧 44 个 SVG 实例、17 个源文件），这个代价可以接受。
 - **颜色必须显式给**：图标靠 `currentColor` 继承，按钮本身没有 `color` 时会继承到近白色，浅色主题下等于隐形。所以 `AppControls` 里显式写了 `text-ink`。
 - **位图带原始像素尺寸**：PNG 读 IHDR、JPEG 读 SOF 段写进清单，渲染时可先占好宽高比，避免加载前布局抖动。
 
@@ -555,7 +585,8 @@ git commit
 8. **地图是静态的**：只做「定位可视化」，不支持拖拽/缩放/雷达成图；需要交互式地图时应换成带手势地图库（同时要接受 ~140KB 体积）。
 9. **底图依赖第三方可达性**：高德瓦片非官方公开 API，若被限流/变更需替换 `config/map.ts` 一个文件；OSM/Carto 在当前网络不可达。
 10. **推荐城市冷启动有 1~3s 温度空缺**：胶囊先显示城市名，温度异步补上（服务端已缓存 10 分钟，后续命中很快）。
-11. **底图只覆盖中国境内**：高德瓦片在境外返回纯白图（已实测 New York 坐标 stddev=0）。因此 `config/map.ts` 用 `BASEMAP_BOUNDS` 做覆盖判定，境外城市不再请求瓦片，改为网格占位 + 「该地区暂无底图预览，可点『打开地图』」文案——宁可明确告知，也不显示一张白图。天气数据本身不受影响。
+11. **地名以数据源返回为准，不做翻译**：即使 `lang=en`，Open-Meteo 对中国城市仍可能返回中文名（`Shenzhen` 搜出的是「深圳」），英文截图里城市名因此仍是中文——这是上游数据特性，不是 i18n 漏翻；要彻底本地化需要维护一份地名对照表。。
+12. **底图只覆盖中国境内**：高德瓦片在境外返回纯白图（已实测 New York 坐标 stddev=0）。因此 `config/map.ts` 用 `BASEMAP_BOUNDS` 做覆盖判定，境外城市不再请求瓦片，改为网格占位 + 「该地区暂无底图预览，可点『打开地图』」文案——宁可明确告知，也不显示一张白图。天气数据本身不受影响。
 
 ---
 
@@ -595,7 +626,38 @@ git commit
 | 移除 ESLint（后又装回） | 先删 `.eslintrc.json`、`lint` script、`eslint` 依赖，切回 node-modules 后重新装回并跑通 | 见踩坑备注 8：命令跑不通就不该留在仓库里；修好前置条件再装回来 |
 | 固定链接方式 | 新增 `.yarnrc.yml`（`nodeLinker: node-modules`、固定 npm 官方源）                       | 见踩坑备注 9：PnP 下 `next build` 无法启动              |
 | 取消跟踪     | `.yarn/install-state.gz`                                                                | 本地安装状态，可重新生成；已进 `.gitignore`             |
-| 保留         | `.next/`（85MB）、`node_modules/`                                                        | 已在`.gitignore` 中，属于本地运行产物，非"无用文件"     |
+| 删除无用文案 | `config/i18n.ts` 里 4 个从未被引用的键（中英各一份）：`locating` / `locateHint` / `mapTitle` / `defaultCity` | 全仓 `t('key')` 反查零命中；词典会随 `TranslationKey` 进入类型，留着只是噪音 |
+| 收敛导出面 | 7 个只在本文件内使用的符号去掉 `export`：`SearchStatus`、`IRequestConfig`、`IApiResponse`、`Theme`、`PREFERENCE_STORAGE_KEY`、`WeatherState`、`CurrentWeather` | 「导出」意味着对外承诺，模块内部类型不该出现在公共 API 上 |
+| 重拍预览图 | `docs/preview-current.png`（深色中文）、`docs/preview-light-en.png`（浅色英文）          | 之前是重构前的旧界面，README 首屏应与代码一致          |
+| 补齐编辑器配套 | `.vscode/settings.json`（`eslint.validate` 含 TS/TSX、保存时 `source.fixAll.eslint`）+ `extensions.json` | 命令行能拦、编辑器不提示 = 体验割裂，见工程化章节   |
+| 修正过期注释 | `Dockerfile` 关于 public 的说明、`weather-codes.ts` 关于图标路径的注释                  | 资源目录已迁到 `public/assets/svg`，注释不能停留在旧路径 |
+| 保留         | `.next/`、`node_modules/`、`.yarn/install-state.gz`                                      | 已在 `.gitignore` 中，属于本地运行产物，非"无用文件"     |
+
+---
+
+## 本地验收清单（5 分钟）
+
+命令级（四条全绿才算通过）：
+
+```bash
+yarn lint        # ESLint：next/core-web-vitals + @typescript-eslint/recommended + prettier 兼容
+yarn format:check
+yarn typecheck
+yarn build       # 内含 next lint 与类型校验；产物在 .next/standalone
+```
+
+人工检查（每个都能在 30 秒内看完）：
+
+| 场景 | 期望 |
+| --- | --- |
+| 首屏 | 默认城市（中文深圳 / 英文 Shenzhen）自动出结果，胶囊温度异步补齐，不出现空卡 |
+| 搜索 | 输入「深」出现建议列表；快速改关键词不会串结果（有竞态取消）；无结果显示「没有找到…」而不是空白 |
+| 定位 | 点准星 → 允许授权后自动出当前城市；拒绝授权 → 明确提示且页面不崩 |
+| 错误态 | 断网或停掉上游后重试，出现「天气加载失败 + 重新获取」而不是一直转圈 |
+| 换肤 | 点击主题按钮，整页 token（背景/文字/线）一起切换，无闪白、无残留过渡帧 |
+| 换语言 | 中英切换后日期/星期/风向/单位/错误文案同步变化（地名由上游决定） |
+| 双端断点 | 窗口拉窄到 640px 以下，卡片与地图改为上下堆叠，不出现横向滚动条 |
+| Docker | `docker build` 后容器 `Up (healthy)`，`curl localhost:3123/` 返回 200 |
 
 ---
 
